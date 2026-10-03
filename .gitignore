@@ -38,3 +38,5 @@ experiments/plans/
 scratch/
 __pycache__/
 *.pyc
+
+ci-results/
