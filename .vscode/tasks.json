@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SCOF: lint this folder (once)",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "${workspaceFolder}/cli/compliance-linter/scof_lint.py",
+        "--dir", "${fileDirname}",
+        "--context", "${input:scofContext}"
+      ],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": {
+        "owner": "scof",
+        "fileLocation": "absolute",
+        "severity": "error",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): (error|warning): \\[([A-Z0-9-]+)\\] (.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "code": 5, "message": 6
+        }
+      }
+    },
+    {
+      "label": "SCOF: watch this folder (save-time)",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "${workspaceFolder}/cli/compliance-linter/scof_lint.py",
+        "--dir", "${fileDirname}",
+        "--context", "${input:scofContext}",
+        "--watch"
+      ],
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": {
+        "owner": "scof",
+        "fileLocation": "absolute",
+        "severity": "error",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): (error|warning): \\[([A-Z0-9-]+)\\] (.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "code": 5, "message": 6
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^SCOF-LINT-BEGIN",
+          "endsPattern": "^SCOF-LINT-END"
+        }
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "scofContext",
+      "type": "pickString",
+      "description": "SCOF deployment context",
+      "options": ["india-finance", "eu"],
+      "default": "india-finance"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+fixture,expected,context,violated_controls
+tests/compliant/s3_kms_cmk_india,PASS,india-finance,
+tests/compliant/rds_encrypted_cmk_india,PASS,india-finance,
+tests/compliant/ec2_encrypted_cmk_india,PASS,india-finance,
+tests/compliant/kms_rotation_enabled_india,PASS,india-finance,
+tests/compliant/iam_least_privilege_india,PASS,india-finance,
+tests/compliant/s3_kms_cmk_eu,PASS,eu,
+tests/non_compliant/s3_no_kms_encryption,FAIL,india-finance,DATA-ENCRYPTION
+tests/non_compliant/s3_wrong_region,FAIL,india-finance,REGION-RESTRICTION
+tests/non_compliant/s3_aws_managed_key,FAIL,india-finance,KEY-OWNERSHIP
+tests/non_compliant/rds_unencrypted,FAIL,india-finance,DATA-ENCRYPTION
+tests/non_compliant/rds_wrong_region,FAIL,india-finance,REGION-RESTRICTION
+tests/non_compliant/ec2_unencrypted_ebs,FAIL,india-finance,DATA-ENCRYPTION
+tests/non_compliant/kms_rotation_disabled,FAIL,india-finance,KEY-ROTATION
+tests/non_compliant/iam_wildcard_admin,FAIL,india-finance,IAM-NO-WILDCARD-ADMIN

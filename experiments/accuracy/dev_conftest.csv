@@ -1,0 +1,15 @@
+fixture,context,expected,expected_control,actual_controls,n_violations,outcome,control_match,unparsed,engine
+s3_kms_cmk_india,india-finance,PASS,,,0,TN,True,0,conftest
+rds_encrypted_cmk_india,india-finance,PASS,,,0,TN,True,0,conftest
+ec2_encrypted_cmk_india,india-finance,PASS,,,0,TN,True,0,conftest
+kms_rotation_enabled_india,india-finance,PASS,,,0,TN,True,0,conftest
+iam_least_privilege_india,india-finance,PASS,,,0,TN,True,0,conftest
+s3_kms_cmk_eu,eu,PASS,,,0,TN,True,0,conftest
+s3_no_kms_encryption,india-finance,FAIL,DATA-ENCRYPTION,DATA-ENCRYPTION,1,TP,True,0,conftest
+s3_wrong_region,india-finance,FAIL,REGION-RESTRICTION,REGION-RESTRICTION,1,TP,True,0,conftest
+s3_aws_managed_key,india-finance,FAIL,KEY-OWNERSHIP,KEY-OWNERSHIP,1,TP,True,0,conftest
+rds_unencrypted,india-finance,FAIL,DATA-ENCRYPTION,DATA-ENCRYPTION,1,TP,True,0,conftest
+rds_wrong_region,india-finance,FAIL,REGION-RESTRICTION,REGION-RESTRICTION,1,TP,True,0,conftest
+ec2_unencrypted_ebs,india-finance,FAIL,DATA-ENCRYPTION,DATA-ENCRYPTION,1,TP,True,0,conftest
+kms_rotation_disabled,india-finance,FAIL,KEY-ROTATION,KEY-ROTATION,1,TP,True,0,conftest
+iam_wildcard_admin,india-finance,FAIL,IAM-NO-WILDCARD-ADMIN,IAM-NO-WILDCARD-ADMIN,1,TP,True,0,conftest

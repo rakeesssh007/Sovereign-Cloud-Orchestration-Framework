@@ -1,0 +1,15 @@
+raw,control,address,parsed,address_shaped,problems,n_scenarios,example_scenario
+DATA-ENCRYPTION: aws_db_instance.finance: RDS instance must set storage_encrypted = true,DATA-ENCRYPTION,aws_db_instance.finance,True,True,,2,tests/non_compliant/rds_unencrypted @ eu
+DATA-ENCRYPTION: aws_instance.app: EC2 block device must set encrypted = true,DATA-ENCRYPTION,aws_instance.app,True,True,,2,tests/non_compliant/ec2_unencrypted_ebs @ eu
+DATA-ENCRYPTION: aws_s3_bucket_server_side_encryption_configuration.data: S3 bucket must use KMS encryption (sse_algorithm aws:kms),DATA-ENCRYPTION,aws_s3_bucket_server_side_encryption_configuration.data,True,True,,2,tests/non_compliant/s3_no_kms_encryption @ eu
+IAM-NO-WILDCARD-ADMIN: aws_iam_policy.admin: policy allows all actions on all resources,IAM-NO-WILDCARD-ADMIN,aws_iam_policy.admin,True,True,,2,tests/non_compliant/iam_wildcard_admin @ eu
+"KEY-OWNERSHIP: aws_s3_bucket_server_side_encryption_configuration.data: KMS encryption must use a customer-managed key, not an AWS-managed or default key",KEY-OWNERSHIP,aws_s3_bucket_server_side_encryption_configuration.data,True,True,,2,tests/non_compliant/s3_aws_managed_key @ eu
+KEY-ROTATION: aws_kms_key.data: KMS key must set enable_key_rotation = true,KEY-ROTATION,aws_kms_key.data,True,True,,2,tests/non_compliant/kms_rotation_disabled @ eu
+REGION-RESTRICTION: context.deployment: no deployment context supplied; region cannot be evaluated,REGION-RESTRICTION,context.deployment,True,True,,1,missing-context
+REGION-RESTRICTION: context.deployment: unknown deployment context 'bogus-context',REGION-RESTRICTION,context.deployment,True,True,,1,unknown-context
+"REGION-RESTRICTION: provider.aws: region is not a literal value, cannot verify for context eu",REGION-RESTRICTION,provider.aws,True,True,,1,nonliteral-region @ eu
+"REGION-RESTRICTION: provider.aws: region is not a literal value, cannot verify for context india-finance",REGION-RESTRICTION,provider.aws,True,True,,1,nonliteral-region @ india-finance
+"REGION-RESTRICTION: provider.aws: uses region ap-south-1, which is not allowed for context eu",REGION-RESTRICTION,provider.aws,True,True,,11,tests/compliant/s3_kms_cmk_india @ eu
+"REGION-RESTRICTION: provider.aws: uses region eu-central-1, which is not allowed for context india-finance",REGION-RESTRICTION,provider.aws,True,True,,1,tests/compliant/s3_kms_cmk_eu @ india-finance
+"REGION-RESTRICTION: provider.aws: uses region us-east-1, which is not allowed for context eu",REGION-RESTRICTION,provider.aws,True,True,,2,tests/non_compliant/s3_wrong_region @ eu
+"REGION-RESTRICTION: provider.aws: uses region us-east-1, which is not allowed for context india-finance",REGION-RESTRICTION,provider.aws,True,True,,2,tests/non_compliant/s3_wrong_region @ india-finance

@@ -1,0 +1,68 @@
+name: compliance-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.find.outputs.dirs }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: find
+        shell: bash
+        run: |
+          dirs=$(find terraform tests -name main.tf -not -path '*/.terraform/*' -print0 | xargs -0 -n1 dirname | sort | jq -R . | jq -sc .)
+          echo "dirs=$dirs" >> "$GITHUB_OUTPUT"
+          echo "$dirs" | jq .
+
+  plan:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJson(needs.discover.outputs.dirs) }}
+    env:
+      AWS_ACCESS_KEY_ID: mock
+      AWS_SECRET_ACCESS_KEY: mock
+      AWS_EC2_METADATA_DISABLED: "true"
+      TF_VAR_offline_plan: "true"
+      TF_IN_AUTOMATION: "true"
+      DIR: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+      - name: Format check
+        working-directory: ${{ matrix.dir }}
+        run: terraform fmt -check -list=true
+      - name: Init
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -input=false
+      - name: Validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate
+      - name: Plan
+        working-directory: ${{ matrix.dir }}
+        run: terraform plan -input=false -out=plan.tfplan
+      - name: Plan JSON
+        working-directory: ${{ matrix.dir }}
+        run: terraform show -json plan.tfplan > plan.json
+      - name: Artifact name
+        id: art
+        run: echo "name=plan-${DIR//\//-}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.art.outputs.name }}
+          path: ${{ matrix.dir }}/plan.json
+          if-no-files-found: error
+          retention-days: 7
