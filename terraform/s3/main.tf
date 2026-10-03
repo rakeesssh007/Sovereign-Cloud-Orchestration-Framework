@@ -10,7 +10,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = "ap-south-1"
 
   # Plan-only mode: no AWS account needed. Dummy credentials come from
   # environment variables, never from this file.
