@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "jurisdiction": "india", "sector": "finance", "context": "india-finance" },
+    { "jurisdiction": "eu", "sector": null, "context": "eu" }
+  ]
+}
