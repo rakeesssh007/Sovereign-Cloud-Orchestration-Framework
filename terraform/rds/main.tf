@@ -9,7 +9,7 @@ terraform {
 }
 
 provider "aws" {
-  region                      = "ap-south-1"
+  region                      = "us-east-1"
   access_key                  = "mock"
   secret_key                  = "mock"
   skip_credentials_validation = true
