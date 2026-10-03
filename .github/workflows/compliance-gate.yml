@@ -2,6 +2,7 @@ name: compliance-gate
 
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -9,60 +10,124 @@ on:
 permissions:
   contents: read
 
-jobs:
-  discover:
-    runs-on: ubuntu-latest
-    outputs:
-      dirs: ${{ steps.find.outputs.dirs }}
-    steps:
-      - uses: actions/checkout@v6
-      - id: find
-        shell: bash
-        run: |
-          dirs=$(find terraform tests -name main.tf -not -path '*/.terraform/*' -print0 | xargs -0 -n1 dirname | sort | jq -R . | jq -sc .)
-          echo "dirs=$dirs" >> "$GITHUB_OUTPUT"
-          echo "$dirs" | jq .
+env:
+  TERRAFORM_VERSION: "1.16.4"
+  OPA_VERSION: "1.21.1"
+  CONFTEST_VERSION: "0.71.0"
+  PYTHON_VERSION: "3.14"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  CHECKPOINT_DISABLE: "1"
 
-  plan:
-    needs: discover
+jobs:
+  tests:
+    name: Policy and tool tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dir: ${{ fromJson(needs.discover.outputs.dirs) }}
-    env:
-      AWS_ACCESS_KEY_ID: mock
-      AWS_SECRET_ACCESS_KEY: mock
-      AWS_EC2_METADATA_DISABLED: "true"
-      TF_VAR_offline_plan: "true"
-      TF_IN_AUTOMATION: "true"
-      DIR: ${{ matrix.dir }}
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      - uses: open-policy-agent/setup-opa@v2
+        with:
+          version: ${{ env.OPA_VERSION }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Rego check, format and unit tests
+        run: |
+          set -euo pipefail
+          opa version
+          opa check policies
+          opa fmt --list --fail policies
+          opa test policies
+      - name: Python tests (shared consumer, contract guard, router)
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s cli/compliance-linter -p "test_*.py" -v
+          python -m unittest discover -s router/policy-routing -p "test_*.py" -v
+
+  gate:
+    name: Compliance gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
         with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
-      - name: Format check
-        working-directory: ${{ matrix.dir }}
-        run: terraform fmt -check -list=true
-      - name: Init
-        working-directory: ${{ matrix.dir }}
-        run: terraform init -input=false
-      - name: Validate
-        working-directory: ${{ matrix.dir }}
-        run: terraform validate
-      - name: Plan
-        working-directory: ${{ matrix.dir }}
-        run: terraform plan -input=false -out=plan.tfplan
-      - name: Plan JSON
-        working-directory: ${{ matrix.dir }}
-        run: terraform show -json plan.tfplan > plan.json
-      - name: Artifact name
-        id: art
-        run: echo "name=plan-${DIR//\//-}" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: open-policy-agent/setup-opa@v2
         with:
-          name: ${{ steps.art.outputs.name }}
-          path: ${{ matrix.dir }}/plan.json
-          if-no-files-found: error
-          retention-days: 7
+          version: ${{ env.OPA_VERSION }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Conftest (checksum verified)
+        run: |
+          set -euo pipefail
+          archive="conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          base="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
+          curl -sSfLO "${base}/${archive}"
+          curl -sSfLO "${base}/checksums.txt"
+          sed -n "/${archive}/p" checksums.txt | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "${archive}" -C "$HOME/.local/bin" conftest
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          rm -f "${archive}" checksums.txt
+      - name: Tool versions
+        run: |
+          terraform version
+          opa version
+          conftest --version
+          python --version
+      - name: Evaluate deployable Terraform configurations
+        run: python scripts/ci_gate.py --engine conftest --out ci-results/gate_summary.json
+      - name: Upload gate summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gate-summary
+          path: ci-results/
+          if-no-files-found: ignore
+
+  self-test:
+    name: Fixture self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: open-policy-agent/setup-opa@v2
+        with:
+          version: ${{ env.OPA_VERSION }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Conftest (checksum verified)
+        run: |
+          set -euo pipefail
+          archive="conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          base="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
+          curl -sSfLO "${base}/${archive}"
+          curl -sSfLO "${base}/checksums.txt"
+          sed -n "/${archive}/p" checksums.txt | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "${archive}" -C "$HOME/.local/bin" conftest
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          rm -f "${archive}" checksums.txt
+      - name: Run development fixtures against the manifest (both engines)
+        run: |
+          set -euo pipefail
+          python scripts/run_manifest.py --engine both --refresh | tee manifest_run.txt
+          grep -q "ALL FIXTURES MATCH THE MANIFEST" manifest_run.txt
+      - name: Upload self-test output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: self-test-output
+          path: |
+            manifest_run.txt
+            experiments/accuracy/dev_*.csv
+          if-no-files-found: ignore
