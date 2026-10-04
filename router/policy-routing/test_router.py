@@ -64,8 +64,10 @@ class RoutingTests(unittest.TestCase):
         with self.assertRaises(r.RouterError):
             r.resolve("eu", routes_file=HERE / "does_not_exist.json")
 
-    def test_every_known_context_is_routable(self):
-        self.assertEqual(set(r.known_contexts()), {x["context"] for x in r.load_routes()})
+    def test_unrouted_known_contexts_are_only_the_base_only_context(self):
+        routed = {x["context"] for x in r.load_routes()}
+        self.assertTrue(routed <= set(r.known_contexts()))
+        self.assertEqual(set(r.known_contexts()) - routed, {"india"})
 
     def test_committed_context_files_match_generated(self):
         for ctx in r.known_contexts():
