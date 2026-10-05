@@ -22,7 +22,7 @@ provider "aws" {
 # Audit logs are kept for at least one year (LOG-RETENTION).
 resource "aws_cloudwatch_log_group" "audit" {
   name              = var.log_group_name
-  retention_in_days = 365
+  retention_in_days = 30
 }
 
 # Public access to the data bucket is fully blocked (ACCESS-EXPOSURE).
