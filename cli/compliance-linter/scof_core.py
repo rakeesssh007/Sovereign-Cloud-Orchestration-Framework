@@ -22,11 +22,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICY_DIR = REPO_ROOT / "policies"
 ROUTER_DIR = REPO_ROOT / "router" / "policy-routing"
 ALLOWLISTS = ROUTER_DIR / "region_allowlists.json"
+CONTROL_SETS = ROUTER_DIR / "control_sets.json"
 CONTEXT_DIR = ROUTER_DIR / "contexts"
 PLUGIN_CACHE = Path(r"C:\Work\Tools\tf-plugin-cache")
 MANIFEST_COLUMNS = ["fixture", "expected", "context", "violated_controls"]
 KNOWN_CONTROLS = {"REGION-RESTRICTION", "DATA-ENCRYPTION", "KEY-OWNERSHIP",
-                  "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN"}
+                  "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN", "CONTROL-SET"}
 
 
 class ScofError(Exception):
@@ -202,7 +203,7 @@ def context_file(context: str) -> Path:
 
 
 def evaluate_opa(plan_json, context):
-    return evaluate_opa_with_data(plan_json, [ALLOWLISTS, context_file(context)])
+    return evaluate_opa_with_data(plan_json, [ALLOWLISTS, CONTROL_SETS, context_file(context)])
 
 
 def evaluate_opa_with_data(plan_json, data_files):
@@ -228,7 +229,7 @@ def evaluate_opa_with_data(plan_json, data_files):
 def evaluate_conftest(plan_json, context):
     ctx = context_file(context)
     cmd = [find_binary("conftest"), "test", str(plan_json), "--policy", str(POLICY_DIR),
-           "--data", str(ALLOWLISTS), "--data", str(ctx), "--output", "json", "--no-color"]
+           "--data", str(ALLOWLISTS), "--data", str(CONTROL_SETS), "--data", str(ctx), "--output", "json", "--no-color"]
     p, secs = _run(cmd)
     if not (p.stdout or "").strip():
         raise ScofError("conftest produced no output:\n" + _tail(p))
