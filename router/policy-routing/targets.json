@@ -1,10 +1,11 @@
 {
   "targets": [
-    { "dir": "terraform/s3",    "jurisdiction": "india", "sector": "finance" },
-    { "dir": "terraform/rds",   "jurisdiction": "india", "sector": "finance" },
-    { "dir": "terraform/ec2",   "jurisdiction": "india", "sector": "finance" },
-    { "dir": "terraform/kms",   "jurisdiction": "india", "sector": "finance" },
-    { "dir": "terraform/iam",   "jurisdiction": "india", "sector": "finance" },
-    { "dir": "terraform/s3-eu", "jurisdiction": "eu" }
+    { "dir": "terraform/s3", "jurisdiction": "india", "sector": "finance" },
+    { "dir": "terraform/rds", "jurisdiction": "india", "sector": "finance" },
+    { "dir": "terraform/ec2", "jurisdiction": "india", "sector": "finance" },
+    { "dir": "terraform/kms", "jurisdiction": "india", "sector": "finance" },
+    { "dir": "terraform/iam", "jurisdiction": "india", "sector": "finance" },
+    { "dir": "terraform/s3-eu", "jurisdiction": "eu" },
+    { "dir": "terraform/audit", "jurisdiction": "india", "sector": "finance" }
   ]
 }
