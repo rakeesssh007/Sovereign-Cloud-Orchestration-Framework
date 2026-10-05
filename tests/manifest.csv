@@ -13,3 +13,11 @@ tests/non_compliant/rds_wrong_region,FAIL,india-finance,REGION-RESTRICTION
 tests/non_compliant/ec2_unencrypted_ebs,FAIL,india-finance,DATA-ENCRYPTION
 tests/non_compliant/kms_rotation_disabled,FAIL,india-finance,KEY-ROTATION
 tests/non_compliant/iam_wildcard_admin,FAIL,india-finance,IAM-NO-WILDCARD-ADMIN
+tests/non_compliant/log_group_short_retention_india,FAIL,india-finance,LOG-RETENTION
+tests/compliant/log_group_retention_365_india,PASS,india-finance,
+tests/compliant/log_group_short_retention_eu,PASS,eu,
+tests/non_compliant/s3_public_access_block_open_india,FAIL,india-finance,ACCESS-EXPOSURE
+tests/non_compliant/rds_publicly_accessible_india,FAIL,india-finance,ACCESS-EXPOSURE
+tests/compliant/s3_public_access_block_all_india,PASS,india-finance,
+tests/non_compliant/rds_no_backup_india,FAIL,india-finance,BACKUP-RESILIENCE
+tests/non_compliant/rds_backup_not_set_india,FAIL,india-finance,BACKUP-RESILIENCE

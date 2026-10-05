@@ -51,3 +51,27 @@ test_enabled_lookup if {
 	control_set.enabled("A") with data.context as "x" with data.control_sets as {"x": ["A"]}
 	not control_set.enabled("B") with data.context as "x" with data.control_sets as {"x": ["A"]}
 }
+
+log_plan := {"resource_changes": [{
+	"address": "aws_cloudwatch_log_group.g",
+	"mode": "managed",
+	"type": "aws_cloudwatch_log_group",
+	"change": {"after": {"retention_in_days": 30}},
+}]}
+
+log_denies(ctx, sets) := d if {
+	d := main.deny with input as log_plan with data.context as ctx with data.known_contexts as known with data.region_allowlists as allowlists with data.control_sets as sets
+}
+
+log_only(d) := {m | some m in d; startswith(m, "LOG-RETENTION:")}
+
+# Same plan, different context: the control fires only where the context enables it.
+test_log_retention_fires_in_a_context_that_enables_it if {
+	d := log_denies("india-finance", {"india-finance": ["LOG-RETENTION"]})
+	count(log_only(d)) == 1
+}
+
+test_log_retention_silent_in_a_context_that_does_not_enable_it if {
+	d := log_denies("eu", {"eu": ["DATA-ENCRYPTION"]})
+	count(log_only(d)) == 0
+}

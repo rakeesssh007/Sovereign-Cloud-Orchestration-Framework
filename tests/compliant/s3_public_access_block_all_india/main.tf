@@ -17,14 +17,11 @@ provider "aws" {
   skip_metadata_api_check     = true
   skip_region_validation      = true
 }
-resource "aws_db_instance" "finance" {
-  backup_retention_period     = 7
-  identifier                  = "scof-finance-db"
-  engine                      = "postgres"
-  instance_class              = "db.t3.micro"
-  allocated_storage           = 20
-  username                    = "dbadmin"
-  manage_master_user_password = true
-  storage_encrypted           = false
-  skip_final_snapshot         = true
+
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket                  = "scof-finance-data"
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }

@@ -27,7 +27,8 @@ CONTEXT_DIR = ROUTER_DIR / "contexts"
 PLUGIN_CACHE = Path(r"C:\Work\Tools\tf-plugin-cache")
 MANIFEST_COLUMNS = ["fixture", "expected", "context", "violated_controls"]
 KNOWN_CONTROLS = {"REGION-RESTRICTION", "DATA-ENCRYPTION", "KEY-OWNERSHIP",
-                  "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN", "CONTROL-SET"}
+                  "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN", "CONTROL-SET",
+                  "LOG-RETENTION", "ACCESS-EXPOSURE", "BACKUP-RESILIENCE"}
 
 
 class ScofError(Exception):
