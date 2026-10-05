@@ -23,7 +23,6 @@ resource "aws_kms_key" "rds" {
 }
 
 resource "aws_db_instance" "finance" {
-  backup_retention_period     = 7
   identifier                  = "scof-finance-db"
   engine                      = "postgres"
   instance_class              = "db.t3.micro"

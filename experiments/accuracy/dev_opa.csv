@@ -13,3 +13,11 @@ rds_wrong_region,india-finance,FAIL,REGION-RESTRICTION,REGION-RESTRICTION,1,TP,T
 ec2_unencrypted_ebs,india-finance,FAIL,DATA-ENCRYPTION,DATA-ENCRYPTION,1,TP,True,0,opa
 kms_rotation_disabled,india-finance,FAIL,KEY-ROTATION,KEY-ROTATION,1,TP,True,0,opa
 iam_wildcard_admin,india-finance,FAIL,IAM-NO-WILDCARD-ADMIN,IAM-NO-WILDCARD-ADMIN,1,TP,True,0,opa
+log_group_short_retention_india,india-finance,FAIL,LOG-RETENTION,LOG-RETENTION,1,TP,True,0,opa
+log_group_retention_365_india,india-finance,PASS,,,0,TN,True,0,opa
+log_group_short_retention_eu,eu,PASS,,,0,TN,True,0,opa
+s3_public_access_block_open_india,india-finance,FAIL,ACCESS-EXPOSURE,ACCESS-EXPOSURE,1,TP,True,0,opa
+rds_publicly_accessible_india,india-finance,FAIL,ACCESS-EXPOSURE,ACCESS-EXPOSURE,1,TP,True,0,opa
+s3_public_access_block_all_india,india-finance,PASS,,,0,TN,True,0,opa
+rds_no_backup_india,india-finance,FAIL,BACKUP-RESILIENCE,BACKUP-RESILIENCE,1,TP,True,0,opa
+rds_backup_not_set_india,india-finance,FAIL,BACKUP-RESILIENCE,BACKUP-RESILIENCE,1,TP,True,0,opa

@@ -17,14 +17,8 @@ provider "aws" {
   skip_metadata_api_check     = true
   skip_region_validation      = true
 }
-resource "aws_db_instance" "finance" {
-  backup_retention_period     = 7
-  identifier                  = "scof-finance-db"
-  engine                      = "postgres"
-  instance_class              = "db.t3.micro"
-  allocated_storage           = 20
-  username                    = "dbadmin"
-  manage_master_user_password = true
-  storage_encrypted           = false
-  skip_final_snapshot         = true
+
+resource "aws_cloudwatch_log_group" "audit" {
+  name              = "/scof/audit"
+  retention_in_days = 30
 }
