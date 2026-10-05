@@ -100,5 +100,57 @@ class RoutingTests(unittest.TestCase):
         self.assertIn("router error", done.stderr)
 
 
+class ControlSetTests(unittest.TestCase):
+    def _tmp_sets(self, obj):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        p = Path(d) / "control_sets.json"
+        p.write_text(json.dumps(obj), encoding="utf-8")
+        return p
+
+    def test_every_known_context_has_a_control_set(self):
+        for ctx in r.known_contexts():
+            self.assertTrue(r.controls_for(ctx), ctx)
+
+    def test_control_sets_cover_exactly_the_known_contexts(self):
+        self.assertEqual(set(r.load_control_sets()), set(r.known_contexts()))
+
+    def test_region_control_differs_by_context(self):
+        self.assertIn("REGION-RESTRICTION", r.controls_for("eu"))
+        self.assertIn("REGION-RESTRICTION", r.controls_for("india-finance"))
+        self.assertNotIn("REGION-RESTRICTION", r.controls_for("india"))
+
+    def test_unknown_context_has_no_control_set(self):
+        with self.assertRaises(r.RouterError):
+            r.controls_for("bogus-context")
+
+    def test_missing_control_sets_file_fails_closed(self):
+        with self.assertRaises(r.RouterError):
+            r.controls_for("eu", control_sets_file=HERE / "does_not_exist.json")
+
+    def test_empty_control_set_fails_closed(self):
+        p = self._tmp_sets({"control_sets": {"eu": []}})
+        with self.assertRaises(r.RouterError):
+            r.controls_for("eu", control_sets_file=p)
+
+    def test_duplicate_control_ids_fail_closed(self):
+        p = self._tmp_sets({"control_sets": {"eu": ["A", "A"]}})
+        with self.assertRaises(r.RouterError):
+            r.controls_for("eu", control_sets_file=p)
+
+    def test_non_list_control_set_fails_closed(self):
+        p = self._tmp_sets({"control_sets": {"eu": "REGION-RESTRICTION"}})
+        with self.assertRaises(r.RouterError):
+            r.controls_for("eu", control_sets_file=p)
+
+    def test_cli_controls_flag(self):
+        done = subprocess.run([sys.executable, str(HERE / "scof_router.py"), "--jurisdiction", "eu", "--controls"],
+                              capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0)
+        lines = done.stdout.strip().splitlines()
+        self.assertEqual(lines[0], "eu")
+        self.assertIn("REGION-RESTRICTION", lines[1])
+
+
 if __name__ == "__main__":
     unittest.main()

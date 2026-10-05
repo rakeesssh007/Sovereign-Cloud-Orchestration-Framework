@@ -20,6 +20,7 @@ from pathlib import Path
 ROUTER_DIR = Path(__file__).resolve().parent
 ROUTES_FILE = ROUTER_DIR / "routing.json"
 ALLOWLISTS_FILE = ROUTER_DIR / "region_allowlists.json"
+CONTROL_SETS_FILE = ROUTER_DIR / "control_sets.json"
 CONTEXT_DIR = ROUTER_DIR / "contexts"
 
 
@@ -80,6 +81,28 @@ def resolve(jurisdiction, sector=None, routes_file=ROUTES_FILE, allowlists_file=
     return context
 
 
+def load_control_sets(control_sets_file=CONTROL_SETS_FILE):
+    data = _read_json(control_sets_file)
+    sets = data.get("control_sets") if isinstance(data, dict) else None
+    if not isinstance(sets, dict) or not sets:
+        raise RouterError("control_sets.json has no control_sets")
+    return sets
+
+
+def controls_for(context, control_sets_file=CONTROL_SETS_FILE):
+    """Control IDs enabled for a context. Fails closed on a missing or malformed set."""
+    controls = load_control_sets(control_sets_file).get(context)
+    valid = (
+        isinstance(controls, list)
+        and controls
+        and all(isinstance(c, str) and c for c in controls)
+        and len(set(controls)) == len(controls)
+    )
+    if not valid:
+        raise RouterError("no valid control set for context '" + str(context) + "'")
+    return list(controls)
+
+
 def context_json(context):
     """Exact text of a context data file (D-023 shape)."""
     return json.dumps({"context": context}, separators=(",", ":")) + "\n"
@@ -100,6 +123,7 @@ def main(argv=None):
     ap.add_argument("--sector")
     ap.add_argument("--write", action="store_true", help="also write contexts/<context>.json")
     ap.add_argument("--list", action="store_true", help="list the configured routes")
+    ap.add_argument("--controls", action="store_true", help="also print the controls enabled for the context")
     args = ap.parse_args(argv)
     try:
         if args.list:
@@ -110,6 +134,8 @@ def main(argv=None):
         if args.write:
             write_context_file(context)
         print(context)
+        if args.controls:
+            print("controls: " + ", ".join(controls_for(context)))
         return 0
     except RouterError as exc:
         print("SCOF router error: " + str(exc), file=sys.stderr)
