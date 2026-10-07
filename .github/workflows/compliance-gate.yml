@@ -22,11 +22,11 @@ env:
 jobs:
   tests:
     name: Policy and tool tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: open-policy-agent/setup-opa@v2
+      - uses: open-policy-agent/setup-opa@v2.4.0
         with:
           version: ${{ env.OPA_VERSION }}
       - uses: actions/setup-python@v6
@@ -47,7 +47,7 @@ jobs:
 
   gate:
     name: Compliance gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -55,7 +55,7 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
-      - uses: open-policy-agent/setup-opa@v2
+      - uses: open-policy-agent/setup-opa@v2.4.0
         with:
           version: ${{ env.OPA_VERSION }}
       - uses: actions/setup-python@v6
@@ -91,7 +91,7 @@ jobs:
 
   self-test:
     name: Fixture self-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
@@ -99,7 +99,7 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
-      - uses: open-policy-agent/setup-opa@v2
+      - uses: open-policy-agent/setup-opa@v2.4.0
         with:
           version: ${{ env.OPA_VERSION }}
       - uses: actions/setup-python@v6

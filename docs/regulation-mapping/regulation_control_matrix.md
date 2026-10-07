@@ -157,7 +157,7 @@ healthcare: NO verified source yet. Deferred; do not invent requirements. The MV
 ## Verification status
 Completed: RBI circular and FAQ, DPDP Rules 2025 (Rules 1, 6, 8(3), 15), RBI IT Governance Directions 2023 (paragraphs 1, 2, 29(e)), DPDP Act (ss.8, 16, Schedule), GDPR Arts 32 and 44-46 on EUR-Lex.
 
-Region allow-lists (CTL-01a, CTL-01b) checked against AWS region documentation on 2026-10-05. AWS adds regions over time, so re-check before the final artifact.
+Region allow-lists  checked against AWS region documentation on 2026-10-05. AWS adds regions over time, so re-check before the final artifact.
 
 Still open:
 1. Healthcare context has no verified source; deferred (pending verified sourcing).
