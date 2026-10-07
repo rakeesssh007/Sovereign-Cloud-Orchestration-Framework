@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """SCOF policy router: resolves a deployment (jurisdiction, sector) to a deployment context.
 
-The context name selects the region allow-list in region_allowlists.json (D-015) and is the value
-the Rego library reads from data.context (D-023). The router fails closed (D-022): an empty,
+The context name selects the region allow-list in region_allowlists.json and is the value
+the Rego library reads from data.context. The router fails closed: an empty,
 unknown or ambiguous deployment raises RouterError and no context is returned.
 
 Usage:
@@ -104,7 +104,7 @@ def controls_for(context, control_sets_file=CONTROL_SETS_FILE):
 
 
 def context_json(context):
-    """Exact text of a context data file (D-023 shape)."""
+    """Exact text of a context data file."""
     return json.dumps({"context": context}, separators=(",", ":")) + "\n"
 
 

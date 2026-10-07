@@ -1,4 +1,4 @@
-"""D-021 guard: no consumer other than scof_core.py may parse violation strings.
+"""Contract guard: no consumer other than scof_core.py may parse violation strings.
 Add the marker  scof-contract-ok: <reason>  to a line that splits on a colon for an unrelated purpose."""
 import re
 import unittest
@@ -36,7 +36,7 @@ class ContractGuard(unittest.TestCase):
                 if any(pat.search(line) for pat in PATTERNS):
                     offenders.append(f"{p.relative_to(ROOT)}:{n}: {line.strip()}")
         self.assertIn("scof_lint.py", scanned, "guard did not scan the CLI; check SKIP_DIRS")
-        self.assertEqual([], offenders, "independent colon parsing found (D-021):\n" + "\n".join(offenders))
+        self.assertEqual([], offenders, "independent colon parsing found:\n" + "\n".join(offenders))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Verify the --watch mode end to end without VS Code and measure save-to-END latency externally.
-Uses a scratch copy of a development fixture (D-024). Local machine only."""
+Uses a scratch copy of a development fixture. Local machine only."""
 import argparse
 import csv
 import queue

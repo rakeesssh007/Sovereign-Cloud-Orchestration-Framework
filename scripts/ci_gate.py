@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""CI hard gate for the deployable Terraform configurations under terraform/ (D-031).
+"""CI hard gate for the deployable Terraform configurations under terraform/.
 
 For every target in router/policy-routing/targets.json the deployment context is resolved by the
 router, then the shared CLI (cli/compliance-linter/scof_lint.py) evaluates the configuration. This
-script never reads violation text (D-026); it only uses the CLI exit code (0 pass, 1 policy
+script never reads violation text; it only uses the CLI exit code (0 pass, 1 policy
 violations, 2 tooling error).
 
 Coverage fails closed: a terraform/ directory with a main.tf and no declared deployment context, or

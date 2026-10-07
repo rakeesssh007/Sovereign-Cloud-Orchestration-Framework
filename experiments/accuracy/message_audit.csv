@@ -1,15 +1,23 @@
 raw,control,address,parsed,address_shaped,problems,n_scenarios,example_scenario
-DATA-ENCRYPTION: aws_db_instance.finance: RDS instance must set storage_encrypted = true,DATA-ENCRYPTION,aws_db_instance.finance,True,True,,2,tests/non_compliant/rds_unencrypted @ eu
-DATA-ENCRYPTION: aws_instance.app: EC2 block device must set encrypted = true,DATA-ENCRYPTION,aws_instance.app,True,True,,2,tests/non_compliant/ec2_unencrypted_ebs @ eu
-DATA-ENCRYPTION: aws_s3_bucket_server_side_encryption_configuration.data: S3 bucket must use KMS encryption (sse_algorithm aws:kms),DATA-ENCRYPTION,aws_s3_bucket_server_side_encryption_configuration.data,True,True,,2,tests/non_compliant/s3_no_kms_encryption @ eu
-IAM-NO-WILDCARD-ADMIN: aws_iam_policy.admin: policy allows all actions on all resources,IAM-NO-WILDCARD-ADMIN,aws_iam_policy.admin,True,True,,2,tests/non_compliant/iam_wildcard_admin @ eu
-"KEY-OWNERSHIP: aws_s3_bucket_server_side_encryption_configuration.data: KMS encryption must use a customer-managed key, not an AWS-managed or default key",KEY-OWNERSHIP,aws_s3_bucket_server_side_encryption_configuration.data,True,True,,2,tests/non_compliant/s3_aws_managed_key @ eu
-KEY-ROTATION: aws_kms_key.data: KMS key must set enable_key_rotation = true,KEY-ROTATION,aws_kms_key.data,True,True,,2,tests/non_compliant/kms_rotation_disabled @ eu
+ACCESS-EXPOSURE: aws_db_instance.finance: database instance is publicly accessible,ACCESS-EXPOSURE,aws_db_instance.finance,True,True,,3,tests/non_compliant/rds_publicly_accessible_india @ eu
+"ACCESS-EXPOSURE: aws_s3_bucket_public_access_block.data: block_public_policy is false, so public access to the bucket is not fully blocked",ACCESS-EXPOSURE,aws_s3_bucket_public_access_block.data,True,True,,3,tests/non_compliant/s3_public_access_block_open_india @ eu
+"BACKUP-RESILIENCE: aws_db_instance.finance: backup_retention_period is 0, automated backups are disabled (minimum 1)",BACKUP-RESILIENCE,aws_db_instance.finance,True,True,,3,tests/non_compliant/rds_no_backup_india @ eu
+BACKUP-RESILIENCE: aws_db_instance.finance: backup_retention_period is not set to a known value at plan time; set it explicitly to at least 1,BACKUP-RESILIENCE,aws_db_instance.finance,True,True,,12,tests/compliant/rds_encrypted_cmk_india @ eu
+CONTROL-SET: context.deployment: no control set defined for context 'eu'; every control is evaluated,CONTROL-SET,context.deployment,True,True,,23,tests/compliant/s3_kms_cmk_india @ eu
+CONTROL-SET: context.deployment: no control set defined for context 'india'; every control is evaluated,CONTROL-SET,context.deployment,True,True,,23,tests/compliant/s3_kms_cmk_india @ india
+CONTROL-SET: context.deployment: no control set defined for context 'india-finance'; every control is evaluated,CONTROL-SET,context.deployment,True,True,,23,tests/compliant/s3_kms_cmk_india @ india-finance
+DATA-ENCRYPTION: aws_db_instance.finance: RDS instance must set storage_encrypted = true,DATA-ENCRYPTION,aws_db_instance.finance,True,True,,3,tests/non_compliant/rds_unencrypted @ eu
+DATA-ENCRYPTION: aws_instance.app: EC2 block device must set encrypted = true,DATA-ENCRYPTION,aws_instance.app,True,True,,3,tests/non_compliant/ec2_unencrypted_ebs @ eu
+DATA-ENCRYPTION: aws_s3_bucket_server_side_encryption_configuration.data: S3 bucket must use KMS encryption (sse_algorithm aws:kms),DATA-ENCRYPTION,aws_s3_bucket_server_side_encryption_configuration.data,True,True,,3,tests/non_compliant/s3_no_kms_encryption @ eu
+IAM-NO-WILDCARD-ADMIN: aws_iam_policy.admin: policy allows all actions on all resources,IAM-NO-WILDCARD-ADMIN,aws_iam_policy.admin,True,True,,3,tests/non_compliant/iam_wildcard_admin @ eu
+"KEY-OWNERSHIP: aws_s3_bucket_server_side_encryption_configuration.data: KMS encryption must use a customer-managed key, not an AWS-managed or default key",KEY-OWNERSHIP,aws_s3_bucket_server_side_encryption_configuration.data,True,True,,3,tests/non_compliant/s3_aws_managed_key @ eu
+KEY-ROTATION: aws_kms_key.data: KMS key must set enable_key_rotation = true,KEY-ROTATION,aws_kms_key.data,True,True,,3,tests/non_compliant/kms_rotation_disabled @ eu
+"LOG-RETENTION: aws_cloudwatch_log_group.audit: retains logs for 30 days, less than the required 365",LOG-RETENTION,aws_cloudwatch_log_group.audit,True,True,,6,tests/non_compliant/log_group_short_retention_india @ eu
 REGION-RESTRICTION: context.deployment: no deployment context supplied; region cannot be evaluated,REGION-RESTRICTION,context.deployment,True,True,,1,missing-context
 REGION-RESTRICTION: context.deployment: unknown deployment context 'bogus-context',REGION-RESTRICTION,context.deployment,True,True,,1,unknown-context
 "REGION-RESTRICTION: provider.aws: region is not a literal value, cannot verify for context eu",REGION-RESTRICTION,provider.aws,True,True,,1,nonliteral-region @ eu
 "REGION-RESTRICTION: provider.aws: region is not a literal value, cannot verify for context india-finance",REGION-RESTRICTION,provider.aws,True,True,,1,nonliteral-region @ india-finance
-"REGION-RESTRICTION: provider.aws: uses region ap-south-1, which is not allowed for context eu",REGION-RESTRICTION,provider.aws,True,True,,11,tests/compliant/s3_kms_cmk_india @ eu
-"REGION-RESTRICTION: provider.aws: uses region eu-central-1, which is not allowed for context india-finance",REGION-RESTRICTION,provider.aws,True,True,,1,tests/compliant/s3_kms_cmk_eu @ india-finance
+"REGION-RESTRICTION: provider.aws: uses region ap-south-1, which is not allowed for context eu",REGION-RESTRICTION,provider.aws,True,True,,18,tests/compliant/s3_kms_cmk_india @ eu
+"REGION-RESTRICTION: provider.aws: uses region eu-central-1, which is not allowed for context india-finance",REGION-RESTRICTION,provider.aws,True,True,,2,tests/compliant/s3_kms_cmk_eu @ india-finance
 "REGION-RESTRICTION: provider.aws: uses region us-east-1, which is not allowed for context eu",REGION-RESTRICTION,provider.aws,True,True,,2,tests/non_compliant/s3_wrong_region @ eu
 "REGION-RESTRICTION: provider.aws: uses region us-east-1, which is not allowed for context india-finance",REGION-RESTRICTION,provider.aws,True,True,,2,tests/non_compliant/s3_wrong_region @ india-finance
