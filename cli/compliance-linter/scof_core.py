@@ -1,9 +1,9 @@
-"""SCOF shared policy-result consumer (proposed resolution of D-021).
+"""SCOF shared policy-result consumer.
 
 The CLI, the VS Code watcher, the manifest runner and the latency script all
 import this module. None of them may split violation messages on their own.
 
-Contract (D-021): "CONTROL-ID: resource address: reason"
+Contract: "CONTROL-ID: resource address: reason"
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit real Rego messages against the D-021 contract (parsed, known control, address shape, round trip)."""
+"""Audit real Rego messages against the message contract (parsed, known control, address shape, round trip)."""
 import csv
 import json
 import sys
@@ -25,7 +25,7 @@ def build_scenarios(rows, plans_dir, tmp):
             scenarios.append((f"{row['fixture']} @ {ctx}", plan, [core.ALLOWLISTS, core.context_file(ctx)], False))
     if base_plan is None:
         sys.exit("no compliant fixture plan available for synthetic scenarios")
-    # synthetic: provider region is not a literal (D-013 / D-022)
+    # synthetic: provider region is not a literal
     plan = json.loads(base_plan.read_text(encoding="utf-8"))
     try:
         plan["configuration"]["provider_config"]["aws"]["expressions"]["region"] = {"references": ["var.aws_region"]}
@@ -98,9 +98,9 @@ def main():
     if bad:
         ok = False
         print(f"CONTRACT AUDIT: {bad} message(s) do not conform. Do NOT add parser heuristics: "
-              "report these to the supervisor/assistant and evaluate structured Rego output (D-021).")
+              "report these to the supervisor/assistant and evaluate structured Rego output.")
     else:
-        print(f"CONTRACT AUDIT: all {len(seen)} distinct real messages conform to the D-021 string contract")
+        print(f"CONTRACT AUDIT: all {len(seen)} distinct real messages conform to the string contract")
     return 0 if ok else 1
 
 

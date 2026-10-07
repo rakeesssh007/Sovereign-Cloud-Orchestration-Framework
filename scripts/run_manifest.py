@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Run every tests/manifest.csv fixture through the shared consumer (D-021).
-These are DEVELOPMENT fixtures (D-024): results are not the paper's accuracy figure."""
+"""Run every tests/manifest.csv fixture through the shared consumer.
+These are DEVELOPMENT fixtures: results are not the paper's accuracy figure."""
 import argparse
 import csv
 import re
@@ -43,7 +43,7 @@ def run_engine(engine, rows, plans_dir, refresh):
 
 
 def report(engine, results):
-    print(f"\n=== Engine: {engine} (development fixtures, D-024) ===")
+    print(f"\n=== Engine: {engine} (development fixtures) ===")
     print(f"{'fixture':28} {'context':14} {'exp':5} {'expected_control':24} {'actual_controls':24} {'n':>2} {'outcome':7} ctl_match")
     for r in results:
         print(f"{r['fixture']:28} {r['context']:14} {r['expected']:5} {r['expected_control']:24} "

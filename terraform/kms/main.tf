@@ -22,4 +22,3 @@ resource "aws_kms_key" "data" {
   enable_key_rotation     = true
   deletion_window_in_days = 30
 }
-# Reference configuration reviewed.
