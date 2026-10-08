@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Audit real Rego messages against the message contract (parsed, known control, address shape, round trip)."""
+import argparse
 import csv
 import json
 import sys
@@ -11,14 +12,17 @@ sys.path.insert(0, str(ROOT / "cli" / "compliance-linter"))
 import scof_core as core  # noqa: E402
 
 
-def build_scenarios(rows, plans_dir, tmp):
+def build_scenarios(rows, plans_dir, tmp, refresh=False):
     contexts = core.list_contexts()
     scenarios = []  # (name, plan, data_files, must_violate)
     base_plan = None
     for row in rows:
-        plan = plans_dir / f"{row['fixture']}.json"
-        if not plan.is_file():
-            core.generate_plan(core.fixture_dir(row), plan)
+        # Same cache as scripts/run_manifest.py; regenerate when missing, stale or --refresh.
+        fixture_dir = core.fixture_dir(row)
+        plan = plans_dir / f"{core.fixture_name(row)}.json"
+        newest_source = max((p.stat().st_mtime for p in fixture_dir.glob("*.tf")), default=0.0)
+        if refresh or not plan.is_file() or plan.stat().st_mtime < newest_source:
+            core.generate_plan(fixture_dir, plan)
         if base_plan is None and row["expected"].upper() == "PASS":
             base_plan = plan
         for ctx in contexts:
@@ -45,12 +49,15 @@ def build_scenarios(rows, plans_dir, tmp):
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    ap = argparse.ArgumentParser(description="Audit real Rego messages against the message contract")
+    ap.add_argument("--refresh", action="store_true", help="regenerate every cached plan")
+    args = ap.parse_args()
     try:
         rows = core.load_manifest()
         seen = {}
         failclosed_problems = []
         with tempfile.TemporaryDirectory() as td:
-            for name, plan, data, must_violate in build_scenarios(rows, ROOT / "experiments" / "plans", Path(td)):
+            for name, plan, data, must_violate in build_scenarios(rows, ROOT / "experiments" / "plans", Path(td), refresh=args.refresh):
                 msgs, _ = core.evaluate_opa_with_data(plan, data)
                 if must_violate and not msgs:
                     failclosed_problems.append(name)
@@ -85,7 +92,7 @@ def main():
     out = ROOT / "experiments" / "accuracy" / "message_audit.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(records[0]) if records else ["raw"])
+        w = csv.DictWriter(fh, fieldnames=list(records[0]) if records else ["raw"], lineterminator="\n")
         w.writeheader()
         w.writerows(records)
     print(f"\nWritten to {out.relative_to(ROOT)}")
