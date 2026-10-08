@@ -57,7 +57,7 @@ def report(engine, results):
     out.parent.mkdir(parents=True, exist_ok=True)
     cols = [c for c in results[0] if c != "messages"]
     with open(out, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=cols)
+        w = csv.DictWriter(fh, fieldnames=cols, lineterminator="\n")
         w.writeheader()
         for r in results:
             w.writerow({c: r[c] for c in cols})
