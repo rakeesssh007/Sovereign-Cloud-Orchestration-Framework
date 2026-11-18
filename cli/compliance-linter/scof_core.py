@@ -18,13 +18,18 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import scof_findings
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICY_DIR = REPO_ROOT / "policies"
 ROUTER_DIR = REPO_ROOT / "router" / "policy-routing"
 ALLOWLISTS = ROUTER_DIR / "region_allowlists.json"
 CONTROL_SETS = ROUTER_DIR / "control_sets.json"
 CONTEXT_DIR = ROUTER_DIR / "contexts"
-PLUGIN_CACHE = Path(r"C:\Work\Tools\tf-plugin-cache")
+PLUGIN_CACHE_DEFAULT = Path(r"C:\Work\Tools\tf-plugin-cache")
+PLUGIN_CACHE = Path(
+    os.environ.get("SCOF_TF_PLUGIN_CACHE", str(PLUGIN_CACHE_DEFAULT))
+).expanduser()
 MANIFEST_COLUMNS = ["fixture", "expected", "context", "violated_controls"]
 KNOWN_CONTROLS = {"REGION-RESTRICTION", "DATA-ENCRYPTION", "KEY-OWNERSHIP",
                   "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN", "CONTROL-SET",
@@ -45,6 +50,7 @@ class Violation:
     parsed: bool = True
     file: str = ""
     line: int = 0
+    enrichment: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -65,8 +71,11 @@ class LintResult:
             "passed": self.passed,
             "timings": self.timings,
             "violations": [
-                {"control": v.control, "address": v.address, "reason": v.reason,
-                 "raw": v.raw, "parsed": v.parsed, "file": v.file, "line": v.line}
+                {
+                    "control": v.control, "address": v.address, "reason": v.reason,
+                    "raw": v.raw, "parsed": v.parsed, "file": v.file, "line": v.line,
+                    **{k: value for k, value in v.enrichment.items() if k != "violation"},
+                }
                 for v in self.violations
             ],
         }
@@ -115,6 +124,12 @@ _ADDR_SHAPE = re.compile(
     r'(?:data\.)?[a-z][a-z0-9_]*\.[A-Za-z0-9_-]+(?:' + _IDX + r')?$')
 
 
+def _resource_type_from_address(address: str) -> str:
+    # Return the Terraform resource type from an already-parsed address.
+    matches = re.findall(r"(?:^|[.])(aws_[a-z0-9_]+)[.][A-Za-z0-9_-]+", address or "")
+    return matches[-1] if matches else ""
+
+
 def is_address_shaped(address: str) -> bool:
     """True if the text looks like a Terraform resource address. Used for validation
     and auditing only; the parser itself never depends on it."""
@@ -135,9 +150,26 @@ def github_annotation(v: Violation) -> str:
 # ---------------------------------------------------------------- processes
 
 def find_binary(name: str) -> str:
+    env_vars = {
+        "terraform": "SCOF_TERRAFORM",
+        "opa": "SCOF_OPA",
+        "conftest": "SCOF_CONFTEST",
+    }
+    override = os.environ.get(env_vars.get(name.lower(), ""))
+
+    if override:
+        configured = Path(override).expanduser()
+        if not configured.is_file():
+            raise ScofError(
+                f"{env_vars[name.lower()]} points to a missing executable: {configured}"
+            )
+        return str(configured.resolve())
+
     path = shutil.which(name)
     if not path:
-        raise ScofError(f"'{name}' was not found on PATH. Install it or open a new terminal.")
+        raise ScofError(
+            f"'{name}' was not found on PATH. Install it or open a new terminal."
+        )
     return path
 
 
@@ -276,6 +308,10 @@ def find_location(tf_dir, v: Violation):
 # ---------------------------------------------------------------- pipeline
 
 def lint(context, engine="opa", tf_dir=None, plan=None, save_plan=None) -> LintResult:
+    try:
+        scof_findings.validate_configuration()
+    except RuntimeError as exc:
+        raise ScofError(f"Enrichment configuration error: {exc}") from exc
     t0 = time.perf_counter()
     timings = {"plan_s": 0.0, "show_s": 0.0}
     tmp = None
@@ -298,6 +334,15 @@ def lint(context, engine="opa", tf_dir=None, plan=None, save_plan=None) -> LintR
         if tmp is not None:
             tmp.cleanup()
     violations = to_violations(msgs)
+    resource_types = [_resource_type_from_address(v.address) for v in violations]
+    enrichment_results = scof_findings.enrich_all(
+        [v.raw for v in violations], context, resource_types=resource_types
+    )
+    for v, enrichment in zip(violations, enrichment_results):
+        # Keep the raw violation string in v.raw; append only structured metadata.
+        v.enrichment = {
+            key: value for key, value in enrichment.items() if key != "violation"
+        }
     for v in violations:
         if tf_dir is not None:
             f, n = find_location(tf_dir, v)

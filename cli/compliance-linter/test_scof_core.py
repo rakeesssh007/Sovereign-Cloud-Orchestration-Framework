@@ -1,6 +1,9 @@
+import importlib
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import scof_core as core
 
@@ -130,6 +133,89 @@ class LocationTests(unittest.TestCase):
             f, n = core.find_location(d, core.Violation("DATA-ENCRYPTION", "aws_x.y", "r", "raw"))
             self.assertEqual((f.name, n), ("main.tf", 1))
 
+class ExecutableOverrideTests(unittest.TestCase):
+    def test_explicit_executable_path_is_used(self):
+        with tempfile.TemporaryDirectory() as td:
+            executable = Path(td) / "opa.exe"
+            executable.write_text("test executable placeholder", encoding="utf-8")
+            with patch.dict(os.environ, {"SCOF_OPA": str(executable)}):
+                self.assertEqual(core.find_binary("opa"), str(executable.resolve()))
+
+    def test_missing_executable_override_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            missing = Path(td) / "does-not-exist.exe"
+            with patch.dict(os.environ, {"SCOF_OPA": str(missing)}):
+                with self.assertRaises(core.ScofError):
+                    core.find_binary("opa")
+
+    def test_missing_path_executable_fails(self):
+        with (
+            patch.dict(os.environ, {"SCOF_OPA": ""}),
+            patch.object(core.shutil, "which", return_value=None),
+        ):
+            with self.assertRaises(core.ScofError):
+                core.find_binary("opa")
+
+    def test_unset_executable_override_uses_path(self):
+        path_result = str(Path(tempfile.gettempdir()) / "opa")
+        with (
+            patch.dict(os.environ, {"SCOF_OPA": ""}),
+            patch.object(core.shutil, "which", return_value=path_result),
+        ):
+            self.assertEqual(core.find_binary("opa"), path_result)
+
+
+class PluginCacheOverrideTests(unittest.TestCase):
+    def test_plugin_cache_environment_override_is_loaded(self):
+        """The module-level cache path is initialized from the environment."""
+        original_cache = core.PLUGIN_CACHE
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                with patch.dict(os.environ, {"SCOF_TF_PLUGIN_CACHE": td}):
+                    importlib.reload(core)
+                    self.assertEqual(core.PLUGIN_CACHE, Path(td).expanduser())
+            finally:
+                # Restore the imported module's original configuration so this
+                # test cannot leak state into later tests.
+                with patch.dict(
+                    os.environ,
+                    {"SCOF_TF_PLUGIN_CACHE": str(original_cache)},
+                ):
+                    importlib.reload(core)
+
+    def test_missing_plugin_cache_is_not_passed_to_terraform(self):
+        with tempfile.TemporaryDirectory() as td:
+            missing_cache = Path(td) / "missing-cache"
+            with (
+                patch.object(core, "PLUGIN_CACHE", missing_cache),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                env = core._tf_env()
+            self.assertNotIn("TF_PLUGIN_CACHE_DIR", env)
+            self.assertNotIn("TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE", env)
+
+    def test_existing_plugin_cache_directory_is_passed_to_terraform(self):
+        with tempfile.TemporaryDirectory() as td:
+            cache = Path(td)
+            with (
+                patch.object(core, "PLUGIN_CACHE", cache),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                env = core._tf_env()
+            self.assertEqual(env["TF_PLUGIN_CACHE_DIR"], str(cache))
+            self.assertEqual(
+                env["TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE"], "true"
+            )
+
+class EnrichmentConfigurationTests(unittest.TestCase):
+    def test_invalid_enrichment_configuration_is_a_tooling_error(self):
+        with patch.object(
+            core.scof_findings,
+            "validate_configuration",
+            side_effect=RuntimeError("bad catalogue"),
+        ):
+            with self.assertRaisesRegex(core.ScofError, "Enrichment configuration error"):
+                core.lint(context="eu", plan="unused.json")
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,3 +21,5 @@ tests/non_compliant/rds_publicly_accessible_india,FAIL,india-finance,ACCESS-EXPO
 tests/compliant/s3_public_access_block_all_india,PASS,india-finance,
 tests/non_compliant/rds_no_backup_india,FAIL,india-finance,BACKUP-RESILIENCE
 tests/non_compliant/rds_backup_not_set_india,FAIL,india-finance,BACKUP-RESILIENCE
+tests/compliant/log_group_retention_365_india_healthcare,PASS,india-healthcare,
+tests/non_compliant/log_group_short_retention_india_healthcare,FAIL,india-healthcare,LOG-RETENTION

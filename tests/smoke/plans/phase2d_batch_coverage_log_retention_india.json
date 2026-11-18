@@ -1,0 +1,180 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.4",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_kms_key.data",
+          "mode": "managed",
+          "type": "aws_kms_key",
+          "name": "data",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "bypass_policy_lockout_safety_check": false,
+            "custom_key_store_id": null,
+            "customer_master_key_spec": "SYMMETRIC_DEFAULT",
+            "deletion_window_in_days": null,
+            "description": "Customer-managed key for finance data",
+            "enable_key_rotation": true,
+            "is_enabled": true,
+            "key_usage": "ENCRYPT_DECRYPT",
+            "region": "ap-south-1",
+            "tags": null,
+            "timeouts": null,
+            "xks_key_id": null
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "account_id": null,
+            "id": null,
+            "region": null
+          }
+        },
+        {
+          "address": "aws_s3_bucket.data",
+          "mode": "managed",
+          "type": "aws_s3_bucket",
+          "name": "data",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "bucket": "scof-fixture-compliant-bucket",
+            "force_destroy": false,
+            "region": "ap-south-1",
+            "tags": {
+              "Sector": "finance"
+            },
+            "tags_all": {
+              "Sector": "finance"
+            },
+            "timeouts": null
+          },
+          "sensitive_values": {
+            "cors_rule": [],
+            "grant": [],
+            "lifecycle_rule": [],
+            "logging": [],
+            "object_lock_configuration": [],
+            "replication_configuration": [],
+            "server_side_encryption_configuration": [],
+            "tags": {},
+            "tags_all": {},
+            "versioning": [],
+            "website": []
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "account_id": null,
+            "bucket": null,
+            "region": null
+          }
+        },
+        {
+          "address": "aws_s3_bucket_server_side_encryption_configuration.data",
+          "mode": "managed",
+          "type": "aws_s3_bucket_server_side_encryption_configuration",
+          "name": "data",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "expected_bucket_owner": null,
+            "region": "ap-south-1",
+            "rule": [
+              {
+                "apply_server_side_encryption_by_default": [
+                  {
+                    "sse_algorithm": "aws:kms"
+                  }
+                ]
+              }
+            ]
+          },
+          "sensitive_values": {
+            "rule": [
+              {
+                "apply_server_side_encryption_by_default": [
+                  {}
+                ],
+                "blocked_encryption_types": []
+              }
+            ]
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "account_id": null,
+            "bucket": null,
+            "region": null
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_cloudwatch_log_group.smoke",
+      "mode": "managed",
+      "type": "aws_cloudwatch_log_group",
+      "name": "smoke",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "retention_in_days": 30
+        },
+        "after_unknown": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "name": "aws",
+        "full_name": "registry.terraform.io/hashicorp/aws",
+        "version_constraint": "~> 6.0",
+        "expressions": {
+          "region": {
+            "constant_value": "ap-south-1"
+          },
+          "skip_credentials_validation": {
+            "constant_value": true
+          },
+          "skip_metadata_api_check": {
+            "constant_value": true
+          },
+          "skip_requesting_account_id": {
+            "constant_value": true
+          }
+        }
+      }
+    },
+    "root_module": {
+      "resources": []
+    }
+  },
+  "relevant_attributes": [
+    {
+      "resource": "aws_kms_key.data",
+      "attribute": [
+        "arn"
+      ]
+    },
+    {
+      "resource": "aws_s3_bucket.data",
+      "attribute": [
+        "id"
+      ]
+    }
+  ],
+  "timestamp": "2026-10-02T04:34:03Z",
+  "applyable": true,
+  "complete": true,
+  "errored": false
+}

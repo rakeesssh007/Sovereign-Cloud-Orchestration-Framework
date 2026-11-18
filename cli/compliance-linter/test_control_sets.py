@@ -38,6 +38,50 @@ class ControlSetConsistency(unittest.TestCase):
         for ctx, controls in self.sets.items():
             self.assertEqual("REGION-RESTRICTION" in controls, ctx in self.lists, ctx)
 
+    def test_healthcare_exact_control_composition(self):
+        expected = {
+            "DATA-ENCRYPTION",
+            "KEY-OWNERSHIP",
+            "KEY-ROTATION",
+            "IAM-NO-WILDCARD-ADMIN",
+            "LOG-RETENTION",
+            "ACCESS-EXPOSURE",
+            "BACKUP-RESILIENCE",
+        }
+        self.assertEqual(set(self.sets["india-healthcare"]), expected)
+
+    def test_india_finance_exact_control_composition(self):
+        expected = {
+            "REGION-RESTRICTION",
+            "DATA-ENCRYPTION",
+            "KEY-OWNERSHIP",
+            "KEY-ROTATION",
+            "IAM-NO-WILDCARD-ADMIN",
+            "LOG-RETENTION",
+            "ACCESS-EXPOSURE",
+            "BACKUP-RESILIENCE",
+        }
+        self.assertEqual(set(self.sets["india-finance"]), expected)
+
+    def test_eu_exact_control_composition(self):
+        expected = {
+            "REGION-RESTRICTION",
+            "DATA-ENCRYPTION",
+            "KEY-OWNERSHIP",
+            "KEY-ROTATION",
+            "IAM-NO-WILDCARD-ADMIN",
+            "ACCESS-EXPOSURE",
+            "BACKUP-RESILIENCE",
+        }
+        self.assertEqual(set(self.sets["eu"]), expected)
+
+    def test_every_region_restricted_context_has_nonempty_allowlist(self):
+        for ctx, controls in self.sets.items():
+            if "REGION-RESTRICTION" in controls:
+                self.assertIn(ctx, self.lists, ctx)
+                self.assertTrue(self.lists[ctx], ctx)
+            else:
+                self.assertNotIn(ctx, self.lists, ctx)
 
 class ControlSetWiring(unittest.TestCase):
     """The control-set data file must reach both engines through scof_core."""

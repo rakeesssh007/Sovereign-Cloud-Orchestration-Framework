@@ -1,0 +1,125 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.4",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_iam_policy.reader",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "reader",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "delay_after_policy_creation_in_ms": null,
+            "description": null,
+            "name": "scof-finance-data-reader",
+            "path": "/",
+            "policy": "{\"Statement\":[{\"Action\":[\"s3:GetObject\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::scof-finance-data/*\"]}],\"Version\":\"2012-10-17\"}",
+            "tags": null
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_iam_policy.reader",
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "reader",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "delay_after_policy_creation_in_ms": null,
+          "description": null,
+          "name": "scof-finance-data-reader",
+          "path": "/",
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:GetObject\",\"Resource\":\"*\"}]}",
+          "tags": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "attachment_count": true,
+          "id": true,
+          "name_prefix": true,
+          "policy_id": true,
+          "tags_all": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "arn": null
+        }
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "name": "aws",
+        "full_name": "registry.terraform.io/hashicorp/aws",
+        "version_constraint": "~> 6.0",
+        "expressions": {
+          "access_key": {
+            "constant_value": "mock"
+          },
+          "region": {
+            "constant_value": "ap-south-1"
+          },
+          "secret_key": {
+            "constant_value": "mock"
+          },
+          "skip_credentials_validation": {
+            "constant_value": true
+          },
+          "skip_metadata_api_check": {
+            "constant_value": true
+          },
+          "skip_region_validation": {
+            "constant_value": true
+          },
+          "skip_requesting_account_id": {
+            "constant_value": true
+          }
+        }
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_iam_policy.reader",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "reader",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "scof-finance-data-reader"
+            },
+            "policy": {}
+          },
+          "schema_version": 0
+        }
+      ]
+    }
+  },
+  "timestamp": "2026-10-02T04:32:32Z",
+  "applyable": true,
+  "complete": true,
+  "errored": false
+}

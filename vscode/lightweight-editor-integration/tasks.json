@@ -1,4 +1,4 @@
-{
+﻿{
   "version": "2.0.0",
   "tasks": [
     {
@@ -54,7 +54,7 @@
       "id": "scofContext",
       "type": "pickString",
       "description": "SCOF deployment context",
-      "options": ["india-finance", "eu"],
+      "options": ["india-finance", "eu", "india-healthcare"],
       "default": "india-finance"
     }
   ]

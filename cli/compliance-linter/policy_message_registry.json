@@ -1,0 +1,165 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "source_of_truth": "sprintf templates in production policies/*.rego supplied on 2026-11-17",
+    "note": "Exact full-message matching. Literal spelling is intentionally preserved, including \"atleast\" in backup_resilience.rego. CONTROL-SET is a configuration finding, not one of the eight catalogue controls. message_audit.csv had observed text discrepancies and is not used to override policy source."
+  },
+  "templates": [
+    {
+      "control_id": "ACCESS-EXPOSURE",
+      "template": "%s: %s: %s is false, so public access to the bucket is not fully blocked",
+      "regex": "^.+?:\\ .+?:\\ .+?\\ is\\ false,\\ so\\ public\\ access\\ to\\ the\\ bucket\\ is\\ not\\ fully\\ blocked$",
+      "kind": "control"
+    },
+    {
+      "control_id": "ACCESS-EXPOSURE",
+      "template": "%s: %s: %s is not known at plan time, cannot verify",
+      "regex": "^.+?:\\ .+?:\\ .+?\\ is\\ not\\ known\\ at\\ plan\\ time,\\ cannot\\ verify$",
+      "kind": "control"
+    },
+    {
+      "control_id": "ACCESS-EXPOSURE",
+      "template": "%s: %s: database instance is publicly accessible",
+      "regex": "^.+?:\\ .+?:\\ database\\ instance\\ is\\ publicly\\ accessible$",
+      "kind": "control"
+    },
+    {
+      "control_id": "ACCESS-EXPOSURE",
+      "template": "%s: %s: publicly_accessible is not known at plan time, cannot verify",
+      "regex": "^.+?:\\ .+?:\\ publicly_accessible\\ is\\ not\\ known\\ at\\ plan\\ time,\\ cannot\\ verify$",
+      "kind": "control"
+    },
+    {
+      "control_id": "BACKUP-RESILIENCE",
+      "template": "%s: %s: backup_retention_period is %d, automated backups are disabled (minimum %d)",
+      "regex": "^.+?:\\ .+?:\\ backup_retention_period\\ is\\ -?\\d+,\\ automated\\ backups\\ are\\ disabled\\ \\(minimum\\ -?\\d+\\)$",
+      "kind": "control"
+    },
+    {
+      "control_id": "BACKUP-RESILIENCE",
+      "template": "%s: %s: backup_retention_period is not set to a known value at plan time; set it explicitly to atleast %d",
+      "regex": "^.+?:\\ .+?:\\ backup_retention_period\\ is\\ not\\ set\\ to\\ a\\ known\\ value\\ at\\ plan\\ time;\\ set\\ it\\ explicitly\\ to\\ atleast\\ -?\\d+$",
+      "kind": "control"
+    },
+    {
+      "control_id": "CONTROL-SET",
+      "template": "%s: context.deployment: no control set defined for context '%s'; every control is evaluated",
+      "regex": "^.+?:\\ context\\.deployment:\\ no\\ control\\ set\\ defined\\ for\\ context\\ '.+?';\\ every\\ control\\ is\\ evaluated$",
+      "kind": "configuration"
+    },
+    {
+      "control_id": "DATA-ENCRYPTION",
+      "template": "%s: %s: S3 bucket must use KMS encryption (sse_algorithm aws:kms)",
+      "regex": "^.+?:\\ .+?:\\ S3\\ bucket\\ must\\ use\\ KMS\\ encryption\\ \\(sse_algorithm\\ aws:kms\\)$",
+      "kind": "control"
+    },
+    {
+      "control_id": "DATA-ENCRYPTION",
+      "template": "%s: %s: S3 bucket has no server-side encryption configuration",
+      "regex": "^.+?:\\ .+?:\\ S3\\ bucket\\ has\\ no\\ server\\-side\\ encryption\\ configuration$",
+      "kind": "control"
+    },
+    {
+      "control_id": "DATA-ENCRYPTION",
+      "template": "%s: %s: RDS instance must set storage_encrypted = true",
+      "regex": "^.+?:\\ .+?:\\ RDS\\ instance\\ must\\ set\\ storage_encrypted\\ =\\ true$",
+      "kind": "control"
+    },
+    {
+      "control_id": "DATA-ENCRYPTION",
+      "template": "%s: %s: EBS volume must set encrypted = true",
+      "regex": "^.+?:\\ .+?:\\ EBS\\ volume\\ must\\ set\\ encrypted\\ =\\ true$",
+      "kind": "control"
+    },
+    {
+      "control_id": "DATA-ENCRYPTION",
+      "template": "%s: %s: EC2 block device must set encrypted = true",
+      "regex": "^.+?:\\ .+?:\\ EC2\\ block\\ device\\ must\\ set\\ encrypted\\ =\\ true$",
+      "kind": "control"
+    },
+    {
+      "control_id": "DATA-ENCRYPTION",
+      "template": "%s: %s: EC2 instance has no explicitly encrypted root_block_device",
+      "regex": "^.+?:\\ .+?:\\ EC2\\ instance\\ has\\ no\\ explicitly\\ encrypted\\ root_block_device$",
+      "kind": "control"
+    },
+    {
+      "control_id": "IAM-NO-WILDCARD-ADMIN",
+      "template": "%s: %s: policy allows all actions on all resources",
+      "regex": "^.+?:\\ .+?:\\ policy\\ allows\\ all\\ actions\\ on\\ all\\ resources$",
+      "kind": "control"
+    },
+    {
+      "control_id": "IAM-NO-WILDCARD-ADMIN",
+      "template": "%s: %s: attaches the AdministratorAccess managed policy",
+      "regex": "^.+?:\\ .+?:\\ attaches\\ the\\ AdministratorAccess\\ managed\\ policy$",
+      "kind": "control"
+    },
+    {
+      "control_id": "KEY-OWNERSHIP",
+      "template": "%s: %s: KMS encryption must use a customer-managed key, not an AWS-managed or default key",
+      "regex": "^.+?:\\ .+?:\\ KMS\\ encryption\\ must\\ use\\ a\\ customer\\-managed\\ key,\\ not\\ an\\ AWS\\-managed\\ or\\ default\\ key$",
+      "kind": "control"
+    },
+    {
+      "control_id": "KEY-OWNERSHIP",
+      "template": "%s: %s: RDS must use a customer-managed KMS key (kms_key_id)",
+      "regex": "^.+?:\\ .+?:\\ RDS\\ must\\ use\\ a\\ customer\\-managed\\ KMS\\ key\\ \\(kms_key_id\\)$",
+      "kind": "control"
+    },
+    {
+      "control_id": "KEY-OWNERSHIP",
+      "template": "%s: %s: EBS volume must use a customer-managed KMS key (kms_key_id)",
+      "regex": "^.+?:\\ .+?:\\ EBS\\ volume\\ must\\ use\\ a\\ customer\\-managed\\ KMS\\ key\\ \\(kms_key_id\\)$",
+      "kind": "control"
+    },
+    {
+      "control_id": "KEY-OWNERSHIP",
+      "template": "%s: %s: EC2 block devices must use a customer-managed KMS key (kms_key_id)",
+      "regex": "^.+?:\\ .+?:\\ EC2\\ block\\ devices\\ must\\ use\\ a\\ customer\\-managed\\ KMS\\ key\\ \\(kms_key_id\\)$",
+      "kind": "control"
+    },
+    {
+      "control_id": "KEY-ROTATION",
+      "template": "%s: %s: KMS key must set enable_key_rotation = true",
+      "regex": "^.+?:\\ .+?:\\ KMS\\ key\\ must\\ set\\ enable_key_rotation\\ =\\ true$",
+      "kind": "control"
+    },
+    {
+      "control_id": "LOG-RETENTION",
+      "template": "%s: %s: retains logs for %d days, less than the SCOF baseline of %d days",
+      "regex": "^.+?:\\ .+?:\\ retains\\ logs\\ for\\ -?\\d+\\ days,\\ less\\ than\\ the\\ SCOF\\ baseline\\ of\\ -?\\d+\\ days$",
+      "kind": "control"
+    },
+    {
+      "control_id": "LOG-RETENTION",
+      "template": "%s: %s: retention period is not known at plan time, cannot verify",
+      "regex": "^.+?:\\ .+?:\\ retention\\ period\\ is\\ not\\ known\\ at\\ plan\\ time,\\ cannot\\ verify$",
+      "kind": "control"
+    },
+    {
+      "control_id": "REGION-RESTRICTION",
+      "template": "%s: context.deployment: no deployment context supplied; region cannot be evaluated",
+      "regex": "^.+?:\\ context\\.deployment:\\ no\\ deployment\\ context\\ supplied;\\ region\\ cannot\\ be\\ evaluated$",
+      "kind": "control"
+    },
+    {
+      "control_id": "REGION-RESTRICTION",
+      "template": "%s: context.deployment: unknown deployment context '%s'",
+      "regex": "^.+?:\\ context\\.deployment:\\ unknown\\ deployment\\ context\\ '.+?'$",
+      "kind": "control"
+    },
+    {
+      "control_id": "REGION-RESTRICTION",
+      "template": "%s: provider.%s: uses region %s, which is not allowed for context %s",
+      "regex": "^.+?:\\ provider\\..+?:\\ uses\\ region\\ .+?,\\ which\\ is\\ not\\ allowed\\ for\\ context\\ .+?$",
+      "kind": "control"
+    },
+    {
+      "control_id": "REGION-RESTRICTION",
+      "template": "%s: provider.%s: region is not a literal value, cannot verify for context %s",
+      "regex": "^.+?:\\ provider\\..+?:\\ region\\ is\\ not\\ a\\ literal\\ value,\\ cannot\\ verify\\ for\\ context\\ .+?$",
+      "kind": "control"
+    }
+  ]
+}

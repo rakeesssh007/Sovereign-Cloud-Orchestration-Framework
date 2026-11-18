@@ -21,3 +21,5 @@ rds_publicly_accessible_india,india-finance,FAIL,ACCESS-EXPOSURE,ACCESS-EXPOSURE
 s3_public_access_block_all_india,india-finance,PASS,,,0,TN,True,0,opa
 rds_no_backup_india,india-finance,FAIL,BACKUP-RESILIENCE,BACKUP-RESILIENCE,1,TP,True,0,opa
 rds_backup_not_set_india,india-finance,FAIL,BACKUP-RESILIENCE,BACKUP-RESILIENCE,1,TP,True,0,opa
+log_group_retention_365_india_healthcare,india-healthcare,PASS,,,0,TN,True,0,opa
+log_group_short_retention_india_healthcare,india-healthcare,FAIL,LOG-RETENTION,LOG-RETENTION,1,TP,True,0,opa

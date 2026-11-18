@@ -75,3 +75,44 @@ test_log_retention_silent_in_a_context_that_does_not_enable_it if {
 	d := log_denies("eu", {"eu": ["DATA-ENCRYPTION"]})
 	count(log_only(d)) == 0
 }
+
+# ---------------------------------------------------------------------------
+# Healthcare context dispatch regression (Phase 2A)
+# Same plans, same policies, different context -- no policy logic changes.
+# ---------------------------------------------------------------------------
+
+healthcare_sets := {"india-healthcare": ["DATA-ENCRYPTION", "KEY-OWNERSHIP", "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN", "LOG-RETENTION", "ACCESS-EXPOSURE", "BACKUP-RESILIENCE"]}
+
+healthcare_known := ["eu", "india-finance", "india", "india-healthcare"]
+
+hc_denies(ctx, sets) := d if {
+	d := main.deny with input as log_plan with data.context as ctx with data.known_contexts as healthcare_known with data.region_allowlists as allowlists with data.control_sets as sets
+}
+
+hc_region_denies(ctx, sets) := d if {
+	d := main.deny with input as plan
+		with data.context as ctx
+		with data.known_contexts as healthcare_known
+		with data.region_allowlists as allowlists
+		with data.control_sets as sets
+}
+
+test_log_retention_fires_in_india_healthcare if {
+	d := hc_denies("india-healthcare", healthcare_sets)
+	count(log_only(d)) == 1
+}
+
+test_region_restriction_silent_in_india_healthcare if {
+	d := hc_region_denies("india-healthcare", healthcare_sets)
+	count(region_only(d)) == 0
+}
+
+test_log_retention_silent_in_eu_still_holds if {
+	d := log_denies("eu", {"eu": ["DATA-ENCRYPTION"]})
+	count(log_only(d)) == 0
+}
+
+test_log_retention_fires_in_india_finance_still_holds if {
+	d := log_denies("india-finance", {"india-finance": ["LOG-RETENTION"]})
+	count(log_only(d)) == 1
+}

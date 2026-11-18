@@ -14,7 +14,7 @@ deny contains msg if {
 	is_number(days)
 	days > 0
 	days < min_days
-	msg := sprintf("%s: %s: retains logs for %d days, less than the required %d", [control, rc.address, days, min_days])
+	msg := sprintf("%s: %s: retains logs for %d days, less than the SCOF baseline of %d days", [control, rc.address, days, min_days])
 }
 
 # Fail closed: a retention value that is unknown at plan time cannot be verified.

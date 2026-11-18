@@ -1,0 +1,96 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.4",
+  "resource_changes": [
+    {
+      "address": "aws_s3_bucket.b",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "b",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "bucket": "smoke-test-bucket"
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "aws_s3_bucket_server_side_encryption_configuration.b",
+      "mode": "managed",
+      "type": "aws_s3_bucket_server_side_encryption_configuration",
+      "name": "b",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "rule": [
+            {
+              "apply_server_side_encryption_by_default": [
+                {
+                  "sse_algorithm": "aws:kms",
+                  "kms_master_key_id": "arn:aws:kms:ap-south-1:111122223333:key/test"
+                }
+              ]
+            }
+          ]
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "aws_kms_key.k",
+      "mode": "managed",
+      "type": "aws_kms_key",
+      "name": "k",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "key_spec": "SYMMETRIC_DEFAULT",
+          "enable_key_rotation": true
+        },
+        "after_unknown": {}
+      }
+    }
+  ],
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_s3_bucket_server_side_encryption_configuration.b",
+          "type": "aws_s3_bucket_server_side_encryption_configuration",
+          "expressions": {
+            "bucket": {
+              "references": [
+                "aws_s3_bucket.b.id",
+                "aws_s3_bucket.b"
+              ]
+            },
+            "rule": [
+              {
+                "apply_server_side_encryption_by_default": [
+                  {
+                    "sse_algorithm": {
+                      "constant_value": "aws:kms"
+                    },
+                    "kms_master_key_id": {
+                      "constant_value": "not-a-valid-key"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
