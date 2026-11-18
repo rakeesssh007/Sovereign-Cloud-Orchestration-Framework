@@ -41,9 +41,10 @@ Which controls run depends on the deployment context (`router/policy-routing/con
 |---|---|
 | `india-finance` (India, finance sector) | all eight |
 | `eu` (EU) | all except `LOG-RETENTION` |
-| `india` | test-only: all except `REGION-RESTRICTION`. The router never produces it. |
+| `india-healthcare` (India, healthcare sector) | all except `REGION-RESTRICTION` |
+| `india` (India, no sector) | all except `REGION-RESTRICTION` |
 
-Healthcare is not supported.
+`india` is the sector-neutral India context, as `eu` is for the EU: a deployment in India without a sector gets the base controls and `LOG-RETENTION`, with no region allow-list. A sector is optional for India and EU; an unsupported sector is an error, not a silent fallback. No healthcare-specific control exists: `india-healthcare` applies the same controls as `india`.
 
 ## Requirements
 
@@ -70,6 +71,7 @@ Useful options: `--engine opa|conftest` (default `opa`), `--format text|json|git
 ```powershell
 python router/policy-routing/scof_router.py --jurisdiction india --sector finance --controls
 python router/policy-routing/scof_router.py --jurisdiction eu --controls
+python router/policy-routing/scof_router.py --jurisdiction india --controls
 python router/policy-routing/scof_router.py --list
 ```
 
@@ -124,5 +126,5 @@ With branch protection requiring these checks, a change that violates a control 
 - AWS only, eight controls over a small set of resource types: S3, RDS, EC2, KMS, IAM and CloudWatch log groups. This is a focused prototype and does not claim complete regulatory coverage.
 - Several controls are interpretations without a legal requirement for the exact setting (see the matrix). DPDP Rules, Rule 6 comes into force about 13 May 2027.
 - The detection is on plan JSON for the listed attributes. Values unknown at plan time are denied where the rule needs them, and some forms of exposure are not detected (for example public bucket policies).
-- Healthcare routing is not implemented.
+- The `india-healthcare` and `india` contexts add no healthcare-specific or sector-specific control; no source reviewed supports a universal India-only hosting requirement, so neither applies a region restriction.
 - Editor feedback takes the time of a Terraform plan; as-you-type feedback is not implemented.

@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "version": "1.2.2",
+    "version": "1.3.0",
     "source": "docs/regulation-mapping/regulation_control_matrix.md",
-    "source_last_updated": "2026-11-15",
+    "source_last_updated": "2026-11-18",
     "phase": "2C",
     "description": "Machine-readable SCOF control and routing-context catalogue derived from the final regulation-to-control matrix.",
     "status_labels": [
@@ -53,9 +53,19 @@
           "Corrected source_last_updated to 2026-11-15."
         ],
         "reason": "Resolve exact-source drift detected by Phase 2C catalogue coverage tests; preserve control semantics and policy behaviour."
+      },
+      {
+        "version": "1.3.0",
+        "date": "2026-11-18",
+        "changes": [
+          "Promoted the sector-neutral india context to a production context (contexts.india.production = true; description and LOG-RETENTION context text updated).",
+          "Refreshed matrix_text for the controls whose matrix section mentions the india context (REGION-RESTRICTION, LOG-RETENTION).",
+          "No control definition, threshold or Rego policy changed."
+        ],
+        "reason": "Owner decision to add a sector-neutral India routing context; freeze reopened before any independent evaluation run."
       }
     ],
-    "content_hash": "sha256:c62221725bcd2c573822991ad98fb510a6c50d5cf14780baad2df3df22ba5ef6"
+    "content_hash": "sha256:6e3eecba275883bf7b05101f222ddc56a1cddb6c9c0e42275722ce5170dccca6"
   },
   "controls": {
     "REGION-RESTRICTION": {
@@ -146,7 +156,7 @@
           ]
         }
       },
-      "matrix_text": "### REGION-RESTRICTION\n- Check: the AWS provider region must be in the allowed list supplied by the routing context. One Rego rule; the router passes the list.\n- Terraform attribute: configuration.provider_config.aws.expressions.region.constant_value (literal region).\n- Rego rule: policies/region.rego (implemented).\n- Allowed lists (parameters; store as data, do not hardcode in Rego):\n  - india-finance: ap-south-1, ap-south-2. Based on [AWS's documented region geographies.](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-availability-zones.html#zones-asia-pacific)\n  - eu: eu-central-1, eu-west-1, eu-west-3, eu-north-1, eu-south-1, eu-south-2. Excludes eu-west-2 (United Kingdom) and eu-central-2 (Switzerland), based on [AWS's documented region geographies.](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-availability-zones.html#zones-europe)\n- Legal basis per context:\n  - india-finance: S1 (RBI). Legal content (as verified): payment system data to be stored in systems located only in India (scope: RBI-authorised payment system providers; payment data). SCOF interpretation: AWS resources of an India finance workload that holds payment data must be deployed in India regions. Caveats: covers payment data only, not all financial data. RBI also allows the foreign leg of a cross-border transaction to be stored abroad; this rule does not model that exception, so it is stricter than the circular. Backups, replication and global services are not modelled. DPDP is not the source of this control (S4: no blanket India-only storage requirement).\n  - eu: S6 (GDPR Art 44), S5 context. Legal content (as verified): transfers to third countries are allowed only if Chapter V conditions are met. SCOF interpretation (conservative): for an EU deployment context, deploy only in EU regions so that no third-country transfer arises. Caveats: GDPR does not require EU-only storage; adequacy decisions and safeguards (Arts 45-46) are not modelled.\n  - india without a sector: no region restriction; no verified source provides one (S4).\n- Fixtures: india-finance PASS s3_kms_cmk_india, rds_encrypted_cmk_india, ec2_encrypted_cmk_india, kms_rotation_enabled_india, iam_least_privilege_india; FAIL s3_wrong_region, rds_wrong_region. eu PASS s3_kms_cmk_eu. \n- Cross-context check: India fixtures evaluated under the eu context fail REGION-RESTRICTION as expected."
+      "matrix_text": "### REGION-RESTRICTION\n- Check: the AWS provider region must be in the allowed list supplied by the routing context. One Rego rule; the router passes the list.\n- Terraform attribute: configuration.provider_config.aws.expressions.region.constant_value (literal region).\n- Rego rule: policies/region.rego (implemented).\n- Allowed lists (parameters; store as data, do not hardcode in Rego):\n  - india-finance: ap-south-1, ap-south-2. Based on [AWS's documented region geographies.](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-availability-zones.html#zones-asia-pacific)\n  - eu: eu-central-1, eu-west-1, eu-west-3, eu-north-1, eu-south-1, eu-south-2. Excludes eu-west-2 (United Kingdom) and eu-central-2 (Switzerland), based on [AWS's documented region geographies.](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-availability-zones.html#zones-europe)\n- Legal basis per context:\n  - india-finance: S1 (RBI). Legal content (as verified): payment system data to be stored in systems located only in India (scope: RBI-authorised payment system providers; payment data). SCOF interpretation: AWS resources of an India finance workload that holds payment data must be deployed in India regions. Caveats: covers payment data only, not all financial data. RBI also allows the foreign leg of a cross-border transaction to be stored abroad; this rule does not model that exception, so it is stricter than the circular. Backups, replication and global services are not modelled. DPDP is not the source of this control (S4: no blanket India-only storage requirement).\n  - eu: S6 (GDPR Art 44), S5 context. Legal content (as verified): transfers to third countries are allowed only if Chapter V conditions are met. SCOF interpretation (conservative): for an EU deployment context, deploy only in EU regions so that no third-country transfer arises. Caveats: GDPR does not require EU-only storage; adequacy decisions and safeguards (Arts 45-46) are not modelled.\n  - india without a sector (context `india`, sector-neutral, as `eu` is for the EU): no region restriction; no verified source provides one (S4). The base DPDP-derived controls and LOG-RETENTION apply as readiness baselines.\n- Fixtures: india-finance PASS s3_kms_cmk_india, rds_encrypted_cmk_india, ec2_encrypted_cmk_india, kms_rotation_enabled_india, iam_least_privilege_india; FAIL s3_wrong_region, rds_wrong_region. eu PASS s3_kms_cmk_eu. \n- Cross-context check: India fixtures evaluated under the eu context fail REGION-RESTRICTION as expected."
     },
     "DATA-ENCRYPTION": {
       "description": "Selected persistent storage resources must be encrypted using AWS KMS.",
@@ -510,9 +520,9 @@
             "S43"
           ],
           "legal_requirement": "Same source distinctions as the India jurisdiction context: CERT-In rolling 180-day ICT logs for covered entities and separate DPDP Rules 2025 future-effective duties.",
-          "scof_interpretation": "Test-only context; the same 365-day CloudWatch baseline is used for regression and policy probes.",
+          "scof_interpretation": "Sector-neutral India context; the same 365-day CloudWatch baseline applies as a readiness baseline (DPDP Rule 6(1)(e) is not yet in force, about 13 May 2027).",
           "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires).",
-          "applicability": "Test-only context; never emitted by the production router.",
+          "applicability": "Sector-neutral India context routed by the production router; LOG-RETENTION is a conservative SCOF baseline, not a legal applicability determination.",
           "limitations": "Same technical limitations as the India jurisdiction context. Do not treat this test context as a production legal-applicability determination.",
           "source_mappings": [
             {
@@ -554,7 +564,7 @@
           ]
         }
       },
-      "matrix_text": "### LOG-RETENTION\n- Status: INTERPRETATION — The security objective is supported, but the one-year requirement is applied to all CloudWatch log groups for implementation purposes.\n- Basis: S2 Rule 6(1)(c) and 6(1)(e), VERIFIED-PRIMARY. DPDP only. No verified EU source requires one-year log retention, so the control is not enabled in the eu context.\n- Legal content (as verified, paraphrased): Rule 6(1)(c) requires visibility on access to personal data through appropriate logs, monitoring and review. Rule 6(1)(e) requires such logs and personal data to be retained for one year, unless another law in force requires otherwise. Rule 8(3) separately describes a minimum of one year for its own purposes. Rule 6 commences about 13 May 2027, so this basis is not yet in force.\n- SCOF interpretation : one year is read as a floor, not an exact period. The check is applied to every CloudWatch log group in the plan, because the plan does not show which log groups hold access logs for personal data.\n- Check: aws_cloudwatch_log_group.retention_in_days must be at least 365. An absent value or 0 (never expires) passes.\n- Terraform attribute: aws_cloudwatch_log_group.retention_in_days.\n- Rego rule: policies/log_retention.rego (implemented).\n- Applies to contexts: india (test-only), india-finance, and india-healthcare. Not enabled in eu.\n- Limits: broader than the rule (all log groups, not only access logs for personal data). Not modelled: the other-law exception, S3 access logs, CloudTrail, logs kept outside CloudWatch, retention of the personal data itself, and any conflict between never-expire logs and erasure duties.\n- Fixtures: FAIL log_group_short_retention_india (30 days, india-finance). PASS log_group_retention_365_india (365 days, india-finance) and log_group_short_retention_eu (30 days, eu: the control is not enabled there). The plan of log_group_short_retention_india evaluated under eu reports REGION-RESTRICTION only, with no LOG-RETENTION finding."
+      "matrix_text": "### LOG-RETENTION\n- Status: INTERPRETATION — The security objective is supported, but the one-year requirement is applied to all CloudWatch log groups for implementation purposes.\n- Basis: S2 Rule 6(1)(c) and 6(1)(e), VERIFIED-PRIMARY. DPDP only. No verified EU source requires one-year log retention, so the control is not enabled in the eu context.\n- Legal content (as verified, paraphrased): Rule 6(1)(c) requires visibility on access to personal data through appropriate logs, monitoring and review. Rule 6(1)(e) requires such logs and personal data to be retained for one year, unless another law in force requires otherwise. Rule 8(3) separately describes a minimum of one year for its own purposes. Rule 6 commences about 13 May 2027, so this basis is not yet in force.\n- SCOF interpretation : one year is read as a floor, not an exact period. The check is applied to every CloudWatch log group in the plan, because the plan does not show which log groups hold access logs for personal data.\n- Check: aws_cloudwatch_log_group.retention_in_days must be at least 365. An absent value or 0 (never expires) passes.\n- Terraform attribute: aws_cloudwatch_log_group.retention_in_days.\n- Rego rule: policies/log_retention.rego (implemented).\n- Applies to contexts: india, india-finance, and india-healthcare. Not enabled in eu.\n- Limits: broader than the rule (all log groups, not only access logs for personal data). Not modelled: the other-law exception, S3 access logs, CloudTrail, logs kept outside CloudWatch, retention of the personal data itself, and any conflict between never-expire logs and erasure duties.\n- Fixtures: FAIL log_group_short_retention_india (30 days, india-finance). PASS log_group_retention_365_india (365 days, india-finance) and log_group_short_retention_eu (30 days, eu: the control is not enabled there). The plan of log_group_short_retention_india evaluated under eu reports REGION-RESTRICTION only, with no LOG-RETENTION finding."
     },
     "ACCESS-EXPOSURE": {
       "description": "S3 public-access-block settings must be fully enabled, and RDS instances must not be publicly accessible.",
@@ -745,7 +755,7 @@
       "production": true
     },
     "india": {
-      "description": "Base India context for tests and probes only; never emitted by the production router.",
+      "description": "Sector-neutral India deployment context (India with no sector): base controls plus LOG-RETENTION, no region restriction. Routed by the production router.",
       "controls": [
         "DATA-ENCRYPTION",
         "KEY-OWNERSHIP",
@@ -757,7 +767,7 @@
       ],
       "region_restriction": false,
       "region_allowlist": [],
-      "production": false
+      "production": true
     }
   }
 }

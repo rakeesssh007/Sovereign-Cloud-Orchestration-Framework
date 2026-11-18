@@ -54,8 +54,8 @@
       "id": "scofContext",
       "type": "pickString",
       "description": "SCOF deployment context",
-      "options": ["india-finance", "eu", "india-healthcare"],
-      "default": "india-finance"
+      "options": ["eu", "india", "india-finance", "india-healthcare"],
+      "default": "india"
     }
   ]
 }

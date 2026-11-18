@@ -304,7 +304,7 @@ class TestProductionCatalogueCoverage(unittest.TestCase):
         meta = self.catalogue["_meta"]
         for key in ("version", "content_hash", "matrix_commit", "status_as_of", "change_log"):
             self.assertIn(key, meta)
-        self.assertEqual(meta["version"], "1.2.2")
+        self.assertEqual(meta["version"], "1.3.0")
 
     def test_three_production_context_compositions(self):
         expected = {
