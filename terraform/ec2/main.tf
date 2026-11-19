@@ -18,7 +18,7 @@ provider "aws" {
   skip_region_validation      = true
 }
 resource "aws_kms_key" "ebs" {
-  description         = "CMK for EBS volume encryption (fixture)"
+  description         = "CMK for EBS volume encryption"
   enable_key_rotation = true
 }
 

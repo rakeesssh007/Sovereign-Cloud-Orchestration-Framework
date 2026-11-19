@@ -15,7 +15,7 @@ resources_of_type(t) := {rc |
 	rc.change.after != null
 }
 
-# Configuration entry for a resource address (root module only in the MVP).
+# Configuration entry for a resource address. Root module only: addresses inside a module are not found.
 config_resource(address) := c if {
 	some c in input.configuration.root_module.resources
 	c.address == address

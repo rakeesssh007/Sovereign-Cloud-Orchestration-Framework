@@ -1,6 +1,10 @@
+import importlib
+import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import scof_core as core
 
@@ -130,6 +134,188 @@ class LocationTests(unittest.TestCase):
             f, n = core.find_location(d, core.Violation("DATA-ENCRYPTION", "aws_x.y", "r", "raw"))
             self.assertEqual((f.name, n), ("main.tf", 1))
 
+    def test_shared_cache_reads_each_file_once(self):
+        with self._dir() as d:
+            cache = {}
+            violation = core.Violation("DATA-ENCRYPTION", "aws_s3_bucket.data", "r", "raw")
+            core.find_location(d, violation, cache)
+            (Path(d) / "main.tf").write_text("# changed\n", encoding="utf-8")
+            f, n = core.find_location(d, violation, cache)
+            self.assertEqual(n, 5)  # still the cached text, so the file was not read again
+
+class ExecutableOverrideTests(unittest.TestCase):
+    def test_explicit_executable_path_is_used(self):
+        with tempfile.TemporaryDirectory() as td:
+            executable = Path(td) / "opa.exe"
+            executable.write_text("test executable placeholder", encoding="utf-8")
+            with patch.dict(os.environ, {"SCOF_OPA": str(executable)}):
+                self.assertEqual(core.find_binary("opa"), str(executable.resolve()))
+
+    def test_missing_executable_override_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            missing = Path(td) / "does-not-exist.exe"
+            with patch.dict(os.environ, {"SCOF_OPA": str(missing)}):
+                with self.assertRaises(core.ScofError):
+                    core.find_binary("opa")
+
+    def test_missing_path_executable_fails(self):
+        with (
+            patch.dict(os.environ, {"SCOF_OPA": ""}),
+            patch.object(core.shutil, "which", return_value=None),
+        ):
+            with self.assertRaises(core.ScofError):
+                core.find_binary("opa")
+
+    def test_unset_executable_override_uses_path(self):
+        path_result = str(Path(tempfile.gettempdir()) / "opa")
+        with (
+            patch.dict(os.environ, {"SCOF_OPA": ""}),
+            patch.object(core.shutil, "which", return_value=path_result),
+        ):
+            self.assertEqual(core.find_binary("opa"), path_result)
+
+
+class PluginCacheOverrideTests(unittest.TestCase):
+    def test_plugin_cache_environment_override_is_loaded(self):
+        """The module-level cache path is initialized from the environment."""
+        original_cache = core.PLUGIN_CACHE
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                with patch.dict(os.environ, {"SCOF_TF_PLUGIN_CACHE": td}):
+                    importlib.reload(core)
+                    self.assertEqual(core.PLUGIN_CACHE, Path(td).expanduser())
+            finally:
+                # Reload with the original environment so this test cannot
+                # leak state into later tests.
+                importlib.reload(core)
+
+    def test_missing_plugin_cache_is_not_passed_to_terraform(self):
+        with tempfile.TemporaryDirectory() as td:
+            missing_cache = Path(td) / "missing-cache"
+            with (
+                patch.object(core, "PLUGIN_CACHE", missing_cache),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                env = core._tf_env()
+            self.assertNotIn("TF_PLUGIN_CACHE_DIR", env)
+            self.assertNotIn("TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE", env)
+
+    def test_existing_plugin_cache_directory_is_passed_to_terraform(self):
+        with tempfile.TemporaryDirectory() as td:
+            cache = Path(td)
+            with (
+                patch.object(core, "PLUGIN_CACHE", cache),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                env = core._tf_env()
+            self.assertEqual(env["TF_PLUGIN_CACHE_DIR"], str(cache))
+            self.assertEqual(
+                env["TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE"], "true"
+            )
+
+class TerraformEnvironmentTests(unittest.TestCase):
+    def test_real_aws_credentials_are_replaced_with_mock_values(self):
+        real = {"AWS_ACCESS_KEY_ID": "AKIAREAL", "AWS_SECRET_ACCESS_KEY": "secret",
+                "AWS_SESSION_TOKEN": "token", "AWS_PROFILE": "prod"}
+        with patch.dict(os.environ, real, clear=True):
+            env = core._tf_env()
+        self.assertEqual(env["AWS_ACCESS_KEY_ID"], "mock")
+        self.assertEqual(env["AWS_SECRET_ACCESS_KEY"], "mock")
+        self.assertNotIn("AWS_SESSION_TOKEN", env)
+        self.assertNotIn("AWS_PROFILE", env)
+
+    def test_a_process_that_does_not_finish_is_a_tooling_error(self):
+        with self.assertRaises(core.ScofError):
+            core._run([sys.executable, "-c", "import time; time.sleep(5)"], timeout=0.2)
+
+
+class EnrichmentConfigurationTests(unittest.TestCase):
+    def test_invalid_enrichment_configuration_is_a_tooling_error(self):
+        with patch.object(
+            core.scof_findings,
+            "validate_configuration",
+            side_effect=RuntimeError("bad catalogue"),
+        ):
+            with self.assertRaisesRegex(core.ScofError, "Enrichment configuration error"):
+                core.lint(context="eu", plan="unused.json")
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DualEngineTests(unittest.TestCase):
+    """Every check runs on OPA and Conftest and passes only if their findings are identical."""
+
+    PLAN = "unused.json"
+    MSG = "REGION-RESTRICTION: provider.aws: uses region us-east-1, which is not allowed for context eu"
+
+    def _patch(self, opa, conftest):
+        return (patch.object(core, "evaluate_opa", side_effect=opa if callable(opa) else None, return_value=None if callable(opa) else opa),
+                patch.object(core, "evaluate_conftest", side_effect=conftest if callable(conftest) else None, return_value=None if callable(conftest) else conftest))
+
+    def test_identical_findings_are_returned_once(self):
+        a, b = self._patch(([self.MSG], 0.1), ([self.MSG], 0.2))
+        with a, b:
+            msgs, secs = core.evaluate("both", self.PLAN, "eu")
+        self.assertEqual(msgs, [self.MSG])
+        self.assertAlmostEqual(secs, 0.3)
+
+    def test_both_clean_is_a_pass(self):
+        a, b = self._patch(([], 0.1), ([], 0.1))
+        with a, b:
+            msgs, _ = core.evaluate("both", self.PLAN, "eu")
+        self.assertEqual(msgs, [])
+
+    def test_finding_only_in_conftest_is_a_disagreement(self):
+        a, b = self._patch(([], 0.1), ([self.MSG], 0.1))
+        with a, b:
+            with self.assertRaises(core.EngineDisagreement) as ctx:
+                core.evaluate("both", self.PLAN, "eu")
+        self.assertIn("only Conftest reported", str(ctx.exception))
+
+    def test_finding_only_in_opa_is_a_disagreement(self):
+        a, b = self._patch(([self.MSG], 0.1), ([], 0.1))
+        with a, b:
+            with self.assertRaises(core.EngineDisagreement) as ctx:
+                core.evaluate("both", self.PLAN, "eu")
+        self.assertIn("only OPA reported", str(ctx.exception))
+
+    def test_different_messages_are_a_disagreement(self):
+        other = self.MSG.replace("us-east-1", "us-west-2")
+        a, b = self._patch(([self.MSG], 0.1), ([other], 0.1))
+        with a, b:
+            with self.assertRaises(core.EngineDisagreement):
+                core.evaluate("both", self.PLAN, "eu")
+
+    def test_failure_of_one_engine_is_never_a_pass(self):
+        def boom(*args, **kwargs):
+            raise core.ScofError("conftest produced no output")
+        a, b = self._patch(([], 0.1), boom)
+        with a, b:
+            with self.assertRaises(core.ScofError) as ctx:
+                core.evaluate("both", self.PLAN, "eu")
+        self.assertNotIsInstance(ctx.exception, core.EngineDisagreement)
+        self.assertIn("Both engines must run successfully", str(ctx.exception))
+
+    def test_disagreement_is_a_tooling_error(self):
+        self.assertTrue(issubclass(core.EngineDisagreement, core.ScofError))
+
+    def test_default_engine_is_both(self):
+        import inspect
+        self.assertEqual(inspect.signature(core.lint).parameters["engine"].default, "both")
+
+    def test_unknown_engine_is_rejected(self):
+        with self.assertRaises(core.ScofError):
+            core.evaluate("rego", self.PLAN, "eu")
+
+    def test_cli_defaults_and_exit_codes(self):
+        import scof_lint
+        with tempfile.TemporaryDirectory() as td:
+            plan = Path(td) / "plan.json"
+            plan.write_text("{}", encoding="utf-8")
+            args = ["--plan", str(plan), "--context", "eu"]
+            cases = [(([self.MSG], 0.1), ([self.MSG], 0.1), 1), (([], 0.1), ([], 0.1), 0), (([], 0.1), ([self.MSG], 0.1), 2)]
+            for opa_r, cft_r, expected in cases:
+                a, b = self._patch(opa_r, cft_r)
+                with a, b:
+                    self.assertEqual(scof_lint.main(args), expected)

@@ -18,7 +18,7 @@ provider "aws" {
   skip_region_validation      = true
 }
 resource "aws_kms_key" "rds" {
-  description         = "CMK for RDS storage encryption (fixture)"
+  description         = "CMK for RDS storage encryption"
   enable_key_rotation = true
 }
 

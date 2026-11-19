@@ -1,4 +1,4 @@
-import json
+﻿import json
 import shutil
 import subprocess
 import sys
@@ -32,14 +32,11 @@ class RoutingTests(unittest.TestCase):
         with self.assertRaises(r.RouterError):
             r.resolve("eu", "finance")
 
-    def test_india_without_sector_fails_closed(self):
-        with self.assertRaises(r.RouterError):
-            r.resolve("india")
+    def test_india_without_sector_is_sector_neutral(self):
+        self.assertEqual(r.resolve("india"), "india")
 
-    def test_healthcare_is_not_routed(self):
-        with self.assertRaises(r.RouterError):
-            r.resolve("india", "healthcare")
-
+    def test_healthcare_is_routed(self):
+        self.assertEqual(r.resolve("india", "healthcare"), "india-healthcare")
     def test_unknown_jurisdiction(self):
         with self.assertRaises(r.RouterError):
             r.resolve("mars", "finance")
@@ -64,10 +61,10 @@ class RoutingTests(unittest.TestCase):
         with self.assertRaises(r.RouterError):
             r.resolve("eu", routes_file=HERE / "does_not_exist.json")
 
-    def test_unrouted_known_contexts_are_only_the_base_only_context(self):
+    def test_every_known_context_is_routed(self):
         routed = {x["context"] for x in r.load_routes()}
         self.assertTrue(routed <= set(r.known_contexts()))
-        self.assertEqual(set(r.known_contexts()) - routed, {"india"})
+        self.assertEqual(set(r.known_contexts()) - routed, set())
 
     def test_committed_context_files_match_generated(self):
         for ctx in r.known_contexts():
@@ -94,10 +91,54 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(done.stdout.strip(), "india-finance")
 
     def test_cli_error_exit_code(self):
-        done = self._cli("--jurisdiction", "india", "--sector", "healthcare")
-        self.assertEqual(done.returncode, 2)
-        self.assertEqual(done.stdout.strip(), "")
-        self.assertIn("router error", done.stderr)
+         done = self._cli("--jurisdiction", "india", "--sector", "insurance")
+
+         self.assertEqual(done.returncode, 2)
+         self.assertEqual(done.stdout.strip(), "")
+         self.assertIn("router error", done.stderr)
+
+
+    def test_india_healthcare_resolves(self):
+        self.assertEqual(r.resolve("india", "healthcare"), "india-healthcare")
+
+    def test_india_finance_still_resolves(self):
+        self.assertEqual(r.resolve("india", "finance"), "india-finance")
+
+    def test_eu_still_resolves(self):
+        self.assertEqual(r.resolve("eu"), "eu")
+
+    def test_india_no_sector_resolves_to_sector_neutral_context(self):
+        self.assertEqual(r.resolve("india"), "india")
+        self.assertEqual(r.resolve("india", ""), "india")
+        self.assertEqual(r.resolve("  India ", None), "india")
+
+    def test_india_unsupported_sector_fails_closed(self):
+        for sector in ("insurance", "retail"):
+            with self.assertRaises(r.RouterError):
+                r.resolve("india", sector)
+
+    def test_sector_neutral_india_has_no_region_restriction(self):
+        controls = r.controls_for(r.resolve("india"))
+        self.assertNotIn("REGION-RESTRICTION", controls)
+        self.assertIn("LOG-RETENTION", controls)
+        self.assertEqual(controls, r.controls_for("india-healthcare"))
+
+    def test_committed_india_context_matches_generated(self):
+        on_disk = (r.CONTEXT_DIR / "india.json").read_bytes().replace(b"\r\n", b"\n")
+        self.assertEqual(on_disk, r.context_json("india").encode("utf-8"))
+
+    def test_no_known_context_is_unrouted(self):
+        routed = {x["context"] for x in r.load_routes()}
+        self.assertEqual(set(r.known_contexts()) - routed, set())
+
+    def test_committed_india_healthcare_context_matches_generated(self):
+        ctx = "india-healthcare"
+        on_disk = (r.CONTEXT_DIR / (ctx + ".json")).read_bytes().replace(b"\r\n", b"\n")
+        self.assertEqual(on_disk, r.context_json(ctx).encode("utf-8"))
+
+    def test_healthcare_route_resolves_to_known_context(self):
+        ctx = r.resolve("india", "healthcare")
+        self.assertIn(ctx, r.known_contexts())
 
 
 class ControlSetTests(unittest.TestCase):
@@ -150,6 +191,23 @@ class ControlSetTests(unittest.TestCase):
         lines = done.stdout.strip().splitlines()
         self.assertEqual(lines[0], "eu")
         self.assertIn("REGION-RESTRICTION", lines[1])
+
+    def test_healthcare_control_set_has_log_retention(self):
+        self.assertIn("LOG-RETENTION", r.controls_for("india-healthcare"))
+
+    def test_healthcare_control_set_excludes_region_restriction(self):
+        self.assertNotIn("REGION-RESTRICTION", r.controls_for("india-healthcare"))
+
+    def test_healthcare_control_set_has_seven_controls(self):
+        self.assertEqual(len(r.controls_for("india-healthcare")), 7)
+
+    def test_finance_and_eu_control_sets_unchanged(self):
+        finance = r.controls_for("india-finance")
+        eu = r.controls_for("eu")
+        self.assertIn("REGION-RESTRICTION", finance)
+        self.assertIn("LOG-RETENTION", finance)
+        self.assertIn("REGION-RESTRICTION", eu)
+        self.assertNotIn("LOG-RETENTION", eu)
 
 
 if __name__ == "__main__":
