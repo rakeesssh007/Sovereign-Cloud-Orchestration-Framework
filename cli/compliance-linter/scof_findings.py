@@ -48,11 +48,12 @@ def _load_message_registry(path: pathlib.Path | str | None = None) -> list[dict[
         raise RuntimeError(f"scof_findings: cannot load valid policy message registry at {resolved}: {exc}") from exc
 
 
-def _is_registered_message(message: str, control_id: str) -> bool:
-    try:
-        entries = _load_message_registry()
-    except RuntimeError:
-        return False
+def _is_registered_message(message: str, control_id: str, entries=None) -> bool:
+    if entries is None:
+        try:
+            entries = _load_message_registry()
+        except RuntimeError:
+            return False
     return any(
         item.get("control_id") == control_id and re.fullmatch(item["regex"], message) is not None
         for item in entries
@@ -123,65 +124,6 @@ def _extract_control_id(violation_message: str) -> str | None:
     return violation_message[:first_colon].strip() or None
 
 
-_DEFAULT_UI_MAP_PATH = pathlib.Path(__file__).resolve().with_name("scof_ui_map.json")
-_UI_MAP_ENV = "SCOF_UI_FIELD_MAP"
-_RESOURCE_TYPE_RE = re.compile(r"^aws_[a-z0-9_]+$")
-
-
-def _load_ui_field_map(path: pathlib.Path | str | None = None) -> dict[tuple[str, str], list[str]]:
-    """Load optional Stage 2 map. Missing/invalid maps fail closed to no IDs."""
-    configured = os.environ.get(_UI_MAP_ENV)
-    resolved = pathlib.Path(path) if path is not None else (
-        pathlib.Path(configured).expanduser() if configured else _DEFAULT_UI_MAP_PATH
-    )
-    try:
-        data = json.loads(resolved.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return {}
-    entries = data.get("mappings") if isinstance(data, dict) else None
-    if not isinstance(entries, list):
-        return {}
-    result: dict[tuple[str, str], list[str]] = {}
-    for item in entries:
-        if not isinstance(item, dict):
-            continue
-        control_id = item.get("control_id")
-        resource_type = item.get("resource_type")
-        field_ids = item.get("field_ids")
-        if (
-            not isinstance(control_id, str)
-            or control_id not in _KNOWN_CONTROL_IDS
-            or not isinstance(resource_type, str)
-            or not _RESOURCE_TYPE_RE.fullmatch(resource_type)
-            or not isinstance(field_ids, list)
-            or not all(isinstance(value, str) and value.strip() for value in field_ids)
-        ):
-            continue
-        key = (control_id, resource_type)
-        current = result.setdefault(key, [])
-        for field_id in field_ids:
-            if field_id not in current:
-                current.append(field_id)
-    return result
-
-
-def ui_field_ids(
-    control_id: str,
-    context: str,
-    resource_type: str = "",
-    field_map: dict[tuple[str, str], list[str]] | None = None,
-) -> dict[str, list[str]]:
-    """Resolve UI field IDs by control and Terraform resource type.
-
-    The map is optional and is deliberately not part of Phase 2C. Without it,
-    the result is always empty. Context is accepted for a stable core API; the
-    approved Stage 2 mapping key is control ID plus Terraform resource type.
-    """
-    mapping = field_map if field_map is not None else _load_ui_field_map()
-    ids = mapping.get((control_id, resource_type), [])
-    return {"field_ids": list(ids)} if ids else {}
-
-
 def _unknown_result(violation_message: str, control_id: str | None) -> dict[str, Any]:
     return {
         "violation": violation_message,
@@ -194,8 +136,7 @@ def enrich(
     violation_message: str,
     context: str,
     catalogue: dict[str, Any] | None = None,
-    resource_type: str = "",
-    field_map: dict[tuple[str, str], list[str]] | None = None,
+    registry: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Enrich one finding while preserving its original violation string."""
     control_id = _extract_control_id(violation_message)
@@ -207,7 +148,7 @@ def enrich(
     # A recognised prefix is not enough: only exact production Rego message
     # shapes may receive regulatory enrichment. This prevents fabricated or
     # stale text from being treated as a verified policy finding.
-    if not _is_registered_message(violation_message, control_id):
+    if not _is_registered_message(violation_message, control_id, registry):
         return result
 
     if catalogue is None:
@@ -249,7 +190,6 @@ def enrich(
             value = [] if field == "sources" else ""
         result[field] = value
 
-    result["ui_field_ids"] = ui_field_ids(control_id, context, resource_type, field_map)
     return result
 
 
@@ -257,7 +197,6 @@ def enrich_all(
     violations: list[str],
     context: str,
     catalogue: dict[str, Any] | None = None,
-    resource_types: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Enrich violations in their original order, loading the catalogue once."""
     if catalogue is None:
@@ -274,11 +213,8 @@ def enrich_all(
                 results.append(item)
             return results
 
-    field_map = _load_ui_field_map()
-    types = resource_types if resource_types is not None else [""] * len(violations)
-    if len(types) != len(violations):
-        raise ValueError("resource_types must have the same length as violations")
-    return [
-        enrich(item, context, catalogue, resource_type=resource_type, field_map=field_map)
-        for item, resource_type in zip(violations, types)
-    ]
+    try:
+        registry = _load_message_registry()  # once per run, not once per finding
+    except RuntimeError:
+        registry = []  # same outcome as a per-finding load failure: nothing is registered
+    return [enrich(item, context, catalogue, registry) for item in violations]

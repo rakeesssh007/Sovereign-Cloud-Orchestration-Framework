@@ -1,6 +1,9 @@
+"""Check the control catalogue: content hash, eight controls, legal status on every source,
+and that each control's matrix_text is an exact copy of its section in the matrix."""
 import hashlib, json, sys
 from pathlib import Path
-path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("docs/regulation-mapping/control_catalogue.json")
+ROOT = Path(__file__).resolve().parents[1]
+path = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "docs" / "regulation-mapping" / "control_catalogue.json"
 data = json.loads(path.read_text(encoding="utf-8"))
 meta = data.get("_meta", {})
 expected = meta.get("content_hash", "")
@@ -25,7 +28,7 @@ for control_id, entry in controls.items():
                 missing.append((control_id, source.get("source_id")))
 if missing:
     raise SystemExit(f"FAIL: source mappings missing legal_status: {missing}")
-matrix_path = Path("docs/regulation-mapping/regulation_control_matrix.md")
+matrix_path = ROOT / "docs" / "regulation-mapping" / "regulation_control_matrix.md"
 if matrix_path.is_file():
     matrix = matrix_path.read_text(encoding="utf-8")
     import re

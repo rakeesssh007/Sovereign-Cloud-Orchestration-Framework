@@ -20,6 +20,14 @@ deny contains msg if {
 	msg := sprintf("%s: %s: policy allows all actions on all resources", [control, rc.address])
 }
 
+# Fail closed: a policy document that is unknown at plan time cannot be verified.
+deny contains msg if {
+	some t in policy_types
+	some rc in lib.resources_of_type(t)
+	object.get(rc.change, ["after_unknown", "policy"], false) == true
+	msg := sprintf("%s: %s: policy is not known at plan time, cannot verify", [control, rc.address])
+}
+
 deny contains msg if {
 	some t in attachment_types
 	some rc in lib.resources_of_type(t)

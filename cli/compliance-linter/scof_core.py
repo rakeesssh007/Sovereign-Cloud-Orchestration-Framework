@@ -1,13 +1,12 @@
 """SCOF shared policy-result consumer.
 
-The CLI, the VS Code watcher, the manifest runner and the latency script all
-import this module. None of them may split violation messages on their own.
+The CLI, the VS Code watcher and the CI gate all import this module. None of
+them may split violation messages on their own.
 
 Contract: "CONTROL-ID: resource address: reason"
 """
 from __future__ import annotations
 
-import csv
 import json
 import os
 import re
@@ -26,14 +25,10 @@ ROUTER_DIR = REPO_ROOT / "router" / "policy-routing"
 ALLOWLISTS = ROUTER_DIR / "region_allowlists.json"
 CONTROL_SETS = ROUTER_DIR / "control_sets.json"
 CONTEXT_DIR = ROUTER_DIR / "contexts"
-PLUGIN_CACHE_DEFAULT = Path(r"C:\Work\Tools\tf-plugin-cache")
-PLUGIN_CACHE = Path(
-    os.environ.get("SCOF_TF_PLUGIN_CACHE", str(PLUGIN_CACHE_DEFAULT))
-).expanduser()
-MANIFEST_COLUMNS = ["fixture", "expected", "context", "violated_controls"]
-KNOWN_CONTROLS = {"REGION-RESTRICTION", "DATA-ENCRYPTION", "KEY-OWNERSHIP",
-                  "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN", "CONTROL-SET",
-                  "LOG-RETENTION", "ACCESS-EXPOSURE", "BACKUP-RESILIENCE"}
+_cache_dir = os.environ.get("SCOF_TF_PLUGIN_CACHE")
+PLUGIN_CACHE = Path(_cache_dir).expanduser() if _cache_dir else None
+PROCESS_TIMEOUT_S = 600
+KNOWN_CONTROLS = set(scof_findings._KNOWN_CONTROL_IDS)
 
 
 class ScofError(Exception):
@@ -129,12 +124,6 @@ _ADDR_SHAPE = re.compile(
     r'(?:data\.)?[a-z][a-z0-9_]*\.[A-Za-z0-9_-]+(?:' + _IDX + r')?$')
 
 
-def _resource_type_from_address(address: str) -> str:
-    # Return the Terraform resource type from an already-parsed address.
-    matches = re.findall(r"(?:^|[.])(aws_[a-z0-9_]+)[.][A-Za-z0-9_-]+", address or "")
-    return matches[-1] if matches else ""
-
-
 def is_address_shaped(address: str) -> bool:
     """True if the text looks like a Terraform resource address. Used for validation
     and auditing only; the parser itself never depends on it."""
@@ -178,10 +167,14 @@ def find_binary(name: str) -> str:
     return path
 
 
-def _run(cmd, env=None):
+def _run(cmd, env=None, timeout=None):
+    timeout = timeout or PROCESS_TIMEOUT_S
     t0 = time.perf_counter()
-    p = subprocess.run(cmd, env=env, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+    try:
+        p = subprocess.run(cmd, env=env, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise ScofError(f"{Path(cmd[0]).name} did not finish within {timeout} seconds") from exc
     return p, time.perf_counter() - t0
 
 
@@ -193,11 +186,12 @@ def _tail(p, n: int = 15) -> str:
 
 def _tf_env() -> dict:
     env = os.environ.copy()
-    env.setdefault("AWS_ACCESS_KEY_ID", "mock")
-    env.setdefault("AWS_SECRET_ACCESS_KEY", "mock")
-    env.setdefault("AWS_EC2_METADATA_DISABLE", "true")
+    # Always mock: a developer's real AWS credentials must never reach a plan.
+    env.update(AWS_ACCESS_KEY_ID="mock", AWS_SECRET_ACCESS_KEY="mock", AWS_EC2_METADATA_DISABLE="true")
+    for name in ("AWS_SESSION_TOKEN", "AWS_PROFILE"):
+        env.pop(name, None)
     env.setdefault("TF_IN_AUTOMATION", "1")
-    if PLUGIN_CACHE.is_dir():
+    if PLUGIN_CACHE and PLUGIN_CACHE.is_dir():
         env.setdefault("TF_PLUGIN_CACHE_DIR", str(PLUGIN_CACHE))
         env.setdefault("TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE", "true")
     return env
@@ -328,8 +322,11 @@ def evaluate(engine: str, plan_json, context):
 _ADDR_RE = re.compile(r"^(?P<type>[a-z0-9_]+)\.(?P<name>[A-Za-z0-9_-]+)")
 
 
-def find_location(tf_dir, v: Violation):
-    """Best-effort source line for a violation (root module only)."""
+def find_location(tf_dir, v: Violation, lines_cache=None):
+    """Best-effort source line for a violation (root module only).
+
+    Pass one dict as lines_cache across calls to read each .tf file only once."""
+    cache = {} if lines_cache is None else lines_cache
     files = sorted(Path(tf_dir).glob("*.tf"))
     patterns = []
     m = _ADDR_RE.match(v.address) if v.address else None
@@ -340,7 +337,9 @@ def find_location(tf_dir, v: Violation):
         patterns.append(re.compile(r'^\s*provider\s+"aws"'))
     for pat in patterns:
         for f in files:
-            for n, text in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if f not in cache:
+                cache[f] = f.read_text(encoding="utf-8", errors="replace").splitlines()
+            for n, text in enumerate(cache[f], 1):
                 if pat.match(text):
                     return f, n
     return (files[0] if files else Path(tf_dir)), 1
@@ -375,18 +374,16 @@ def lint(context, engine="both", tf_dir=None, plan=None, save_plan=None) -> Lint
         if tmp is not None:
             tmp.cleanup()
     violations = to_violations(msgs)
-    resource_types = [_resource_type_from_address(v.address) for v in violations]
-    enrichment_results = scof_findings.enrich_all(
-        [v.raw for v in violations], context, resource_types=resource_types
-    )
+    enrichment_results = scof_findings.enrich_all([v.raw for v in violations], context)
     for v, enrichment in zip(violations, enrichment_results):
         # Keep the raw violation string in v.raw; append only structured metadata.
         v.enrichment = {
             key: value for key, value in enrichment.items() if key != "violation"
         }
+    lines_cache = {}
     for v in violations:
         if tf_dir is not None:
-            f, n = find_location(tf_dir, v)
+            f, n = find_location(tf_dir, v, lines_cache)
             v.file, v.line = str(Path(f).resolve()), n
         else:
             v.file, v.line = str(plan_path), 1
@@ -400,44 +397,3 @@ def diagnostic_line(v: Violation) -> str:
     reason = " ".join(v.reason.split())
     addr = f"{v.address}: " if v.address else ""
     return f"{v.file}:{v.line}:1: error: [{v.control}] {addr}{reason}"
-
-
-# ---------------------------------------------------------------- manifest
-
-def load_manifest() -> list:
-    path = REPO_ROOT / "tests" / "manifest.csv"
-    if not path.is_file():
-        raise ScofError(f"Manifest not found: {path}")
-    with open(path, newline="", encoding="utf-8-sig") as fh:
-        reader = csv.DictReader(fh)
-        rows = list(reader)
-        header = reader.fieldnames or []
-    missing = [c for c in MANIFEST_COLUMNS if c not in header]
-    if missing:
-        raise ScofError(f"manifest.csv is missing columns {missing}; header is {header}")
-    return [{k: (v or "").strip() for k, v in r.items() if k is not None} for r in rows]
-
-
-def fixture_name(row: dict) -> str:
-    """Bare fixture name, whether the manifest holds 'x' or 'tests/compliant/x'."""
-    raw = row["fixture"].replace("\\", "/").strip().strip("/")
-    return raw.rsplit("/", 1)[-1]
-
-
-def fixture_dir(row: dict) -> Path:
-    raw = row["fixture"].replace("\\", "/").strip().strip("/")
-    # 1) the manifest gave a path (repo-relative, or relative to tests/)
-    if "/" in raw:
-        for base in (REPO_ROOT, REPO_ROOT / "tests"):
-            d = base / raw
-            if d.is_dir():
-                return d
-    # 2) bare name: look in the folder matching the expectation first
-    name = fixture_name(row)
-    first = "compliant" if row["expected"].upper() == "PASS" else "non_compliant"
-    second = "non_compliant" if first == "compliant" else "compliant"
-    for sub in (first, second):
-        d = REPO_ROOT / "tests" / sub / name
-        if d.is_dir():
-            return d
-    raise ScofError(f"Fixture directory not found for '{row['fixture']}'")

@@ -77,8 +77,8 @@ test_log_retention_silent_in_a_context_that_does_not_enable_it if {
 }
 
 # ---------------------------------------------------------------------------
-# Healthcare context dispatch regression (Phase 2A)
-# Same plans, same policies, different context -- no policy logic changes.
+# Healthcare context dispatch
+# Same plans, same policies, different context: the result depends only on the context.
 # ---------------------------------------------------------------------------
 
 healthcare_sets := {"india-healthcare": ["DATA-ENCRYPTION", "KEY-OWNERSHIP", "KEY-ROTATION", "IAM-NO-WILDCARD-ADMIN", "LOG-RETENTION", "ACCESS-EXPOSURE", "BACKUP-RESILIENCE"]}

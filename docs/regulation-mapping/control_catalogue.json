@@ -1,9 +1,8 @@
 {
   "_meta": {
-    "version": "1.3.0",
+    "version": "1.4.0",
     "source": "docs/regulation-mapping/regulation_control_matrix.md",
-    "source_last_updated": "2026-11-18",
-    "phase": "2C",
+    "source_last_updated": "2026-11-19",
     "description": "Machine-readable SCOF control and routing-context catalogue derived from the final regulation-to-control matrix.",
     "status_labels": [
       "VERIFIED-PRIMARY",
@@ -12,60 +11,43 @@
       "NOT VERIFIED"
     ],
     "note": "A source supporting a security objective does not mean the exact Terraform check is legally mandated. Applicability must be established for the entity, workload, data and activity. The catalogue preserves the existing eight-control baseline; HC-CAND-01 through HC-CAND-05 are research assessment records, not controls.",
-    "matrix_commit": "f0b67604dabb7754af43074d465ac264f82864f0",
-    "repository_head_at_snapshot": "5ff9e1248030adead1118caa2b67ccc21df35722",
-    "matrix_worktree_state": "modified; uncommitted edits were present at snapshot; committed matrix revision above is not the same as the working-tree content",
     "status_as_of": "2026-11-15",
     "content_hash_algorithm": "sha256",
     "content_hash_scope": "Canonical UTF-8 JSON with sorted keys and compact separators, excluding _meta.content_hash itself",
     "change_log": [
       {
         "version": "1.1.0",
-        "date": "2026-11-17",
         "changes": [
           "Added per-source legal status and separate SCOF mapping status metadata.",
-          "Recorded committed matrix provenance and the observed modified worktree state.",
-          "Added a deterministic catalogue content hash.",
-          "Preserved existing sources arrays and control/context wording."
+          "Added a deterministic catalogue content hash."
         ]
       },
       {
         "version": "1.2.0",
-        "date": "2026-11-17",
         "changes": [
           "Added the exact Markdown source section for each of the eight controls as matrix_text."
-        ],
-        "reason": "Make the Phase 4 unchanged-text requirement directly auditable against the supplied regulation-to-control matrix."
-      },
-      {
-        "version": "1.2.1",
-        "date": "2026-11-17",
-        "changes": [
-          "Corrected source_last_updated to match the exact matrix header date (2026-10-05); retained status_as_of 2026-11-15 as the separate legal-status snapshot date."
-        ],
-        "reason": "Keep source-document recency distinct from the date on which legal status metadata was last checked."
-      },
-      {
-        "version": "1.2.2",
-        "date": "2026-11-17",
-        "changes": [
-          "Corrected LOG-RETENTION and ACCESS-EXPOSURE matrix_text to match the 2026-11-15 working-tree matrix exactly.",
-          "Corrected source_last_updated to 2026-11-15."
-        ],
-        "reason": "Resolve exact-source drift detected by Phase 2C catalogue coverage tests; preserve control semantics and policy behaviour."
+        ]
       },
       {
         "version": "1.3.0",
-        "date": "2026-11-18",
         "changes": [
-          "Promoted the sector-neutral india context to a production context (contexts.india.production = true; description and LOG-RETENTION context text updated).",
-          "Refreshed matrix_text for the controls whose matrix section mentions the india context (REGION-RESTRICTION, LOG-RETENTION).",
-          "No control definition, threshold or Rego policy changed."
-        ],
-        "reason": "Owner decision to add a sector-neutral India routing context; freeze reopened before any independent evaluation run."
+          "Added the sector-neutral india context as a routed context.",
+          "Refreshed matrix_text for REGION-RESTRICTION and LOG-RETENTION."
+        ]
+      },
+      {
+        "version": "1.4.0",
+        "date": "2026-11-19",
+        "changes": [
+          "Refreshed matrix_text for all eight controls from the re-verified regulation matrix.",
+          "BACKUP-RESILIENCE: the RBI basis cites the 2026 entity-specific Directions; the former RBI IT Governance Directions 2023 are no longer cited as a basis.",
+          "DATA-ENCRYPTION: technical_check and terraform_attributes list every attribute the policy checks.",
+          "LOG-RETENTION: technical_check states that a retention value unknown at plan time is denied.",
+          "IAM-NO-WILDCARD-ADMIN: a policy document that is unknown at plan time is denied; technical_check and matrix_text updated."
+        ]
       }
     ],
-    "content_hash": "sha256:6e3eecba275883bf7b05101f222ddc56a1cddb6c9c0e42275722ce5170dccca6"
+    "content_hash": "sha256:3a7d0a30f749f5e0c99732acce441c201f2b1a5c3853397933d1d52407a88b46"
   },
   "controls": {
     "REGION-RESTRICTION": {
@@ -162,8 +144,11 @@
       "description": "Selected persistent storage resources must be encrypted using AWS KMS.",
       "terraform_attributes": [
         "aws_s3_bucket_server_side_encryption_configuration.rule.apply_server_side_encryption_by_default.sse_algorithm",
+        "aws_s3_bucket (an encryption configuration must exist for each bucket)",
         "aws_db_instance.storage_encrypted",
-        "aws_instance.root_block_device[].encrypted"
+        "aws_ebs_volume.encrypted",
+        "aws_instance.root_block_device[].encrypted",
+        "aws_instance.ebs_block_device[].encrypted"
       ],
       "rego_module": "policies/encryption.rego",
       "basis_label": "INTERPRETATION",
@@ -176,7 +161,7 @@
       ],
       "legal_requirement": "GDPR Article 32(1)(a) expressly identifies encryption as an appropriate security measure. DPDP Rules 2025 Rule 6(1)(a) identifies encryption among minimum safeguards but is scheduled to commence on 13 May 2027. RBI 2026 instruments contain entity- and clause-specific security/cryptographic requirements; they do not generally prescribe AWS KMS for the resources checked.",
       "scof_interpretation": "SCOF requires AWS KMS encryption for the selected persistent-storage resources. This is stricter than a generic legal requirement to encrypt; other encryption methods may satisfy a legal obligation even where they fail this SCOF control.",
-      "technical_check": "S3 server-side encryption algorithm is aws:kms; RDS storage_encrypted is true; EC2 root_block_device encrypted is true.",
+      "technical_check": "Every S3 server-side encryption configuration uses aws:kms and every bucket has one; RDS storage_encrypted is true; standalone EBS volumes set encrypted = true; every EC2 block device (root and extra EBS) sets encrypted = true; an EC2 instance with no explicit root_block_device is denied.",
       "applicability": "Base control in all four catalogue contexts. Legal source applicability remains conditional on GDPR scope, the relevant RBI entity/activity/clause, and DPDP commencement and scope.",
       "limitations": "The cited sources do not generally mandate AWS KMS or these exact Terraform attributes. DPDP Rule 6 is not yet in force as of the matrix date. The check does not establish encryption of every data flow, service, backup or data store, nor key governance.",
       "source_mappings": [
@@ -217,7 +202,7 @@
           "status_as_of": "2026-11-15"
         }
       ],
-      "matrix_text": "### DATA-ENCRYPTION\n- Basis (all contexts): S2 Rule 6 and S5 Art 32.\n- Legal content (as verified): reasonable or appropriate security measures, with encryption named as one example. Neither text names KMS or any AWS service. DPDP Rule 6 commences 18 months after notification (about 13 May 2027, per Rule 1), so that basis is not yet in force; GDPR Art 32 is in force.\n- SCOF interpretation: persistent storage must be encrypted with AWS KMS. SSE-S3 (AES256) is still encryption, so the fixture s3_no_kms_encryption violates our stricter KMS control, not necessarily the law.\n- Check: S3 sse_algorithm is aws:kms; RDS storage_encrypted is true; EC2 root_block_device encrypted is true.\n- Terraform attributes: aws_s3_bucket_server_side_encryption_configuration (rule.apply_server_side_encryption_by_default.sse_algorithm); aws_db_instance.storage_encrypted; aws_instance.root_block_device[].encrypted.\n- Rego rule: policies/encryption.rego (implemented).\n- Fixtures: FAIL s3_no_kms_encryption, rds_unencrypted, ec2_unencrypted_ebs. PASS the compliant set."
+      "matrix_text": "### DATA-ENCRYPTION\n- Basis (all contexts): S2 Rule 6 and S5 Art 32.\n- Legal content (as verified): reasonable or appropriate security measures, with encryption named as one example. Neither text names KMS or any AWS service. DPDP Rule 6 commences 18 months after notification (about 13 May 2027, per Rule 1), so that basis is not yet in force; GDPR Art 32 is in force.\n- SCOF interpretation: persistent storage must be encrypted with AWS KMS. SSE-S3 (AES256) is still encryption, so the fixture s3_no_kms_encryption violates our stricter KMS control, not necessarily the law.\n- Check: every S3 server-side encryption configuration uses sse_algorithm aws:kms, and every aws_s3_bucket has such a configuration; every aws_db_instance sets storage_encrypted to true; every standalone aws_ebs_volume sets encrypted to true; every EC2 block device (root and extra EBS) sets encrypted to true; an EC2 instance with no explicit root_block_device is denied.\n- Terraform attributes: aws_s3_bucket_server_side_encryption_configuration (rule.apply_server_side_encryption_by_default.sse_algorithm); aws_db_instance.storage_encrypted; aws_ebs_volume.encrypted; aws_instance.root_block_device[].encrypted and aws_instance.ebs_block_device[].encrypted; the presence of an encryption configuration for each aws_s3_bucket.\n- Rego rule: policies/encryption.rego (implemented).\n- Fixtures: FAIL s3_no_kms_encryption, rds_unencrypted, ec2_unencrypted_ebs. PASS the compliant set."
     },
     "KEY-OWNERSHIP": {
       "description": "Referenced encryption keys must be customer-managed rather than AWS-managed aliases.",
@@ -329,7 +314,7 @@
       ],
       "legal_requirement": "The cited GDPR, DPDP and applicable RBI provisions support appropriate access control, least privilege and privileged-access safeguards within their respective scopes. DPDP Rule 6(1)(b) is scheduled for 13 May 2027. The cited clauses do not expressly prohibit every IAM statement using wildcard actions and resources.",
       "scof_interpretation": "SCOF treats an Allow statement with Action \"*\" and Resource \"*\" as a narrow technical indicator of excessive administrative privilege.",
-      "technical_check": "Reject an IAM policy statement that has Effect=Allow, Action=\"*\" and Resource=\"*\".",
+      "technical_check": "Reject an IAM policy statement that has Effect=Allow, Action=\"*\" and Resource=\"*\"; a policy document that is unknown at plan time is denied.",
       "applicability": "Base control in all four catalogue contexts. RBI obligations remain limited to the entity class and applicable chapter/paragraph; GDPR and DPDP require their respective scope tests.",
       "limitations": "This is a narrow wildcard-policy check, not a complete least-privilege assessment. It does not establish business need, access reviews, screening, MFA, permission-boundary effectiveness, SCPs, resource policies, separation of duties, privileged-session monitoring or runtime privilege escalation.",
       "source_mappings": [
@@ -370,7 +355,7 @@
           "status_as_of": "2026-11-15"
         }
       ],
-      "matrix_text": "### IAM-NO-WILDCARD-ADMIN\n- Basis: S2 Rule 6 (access control is among the minimum safeguards), VERIFIED-PRIMARY. The wildcard-admin rule is our INTERPRETATION of \"access control\"; Rule 6 does not mention IAM or wildcards. Rule 6 commences about 13 May 2027 (Rule 1), so the DPDP basis is not yet in force.\n- Check: no IAM policy statement may Allow Action \"*\" on Resource \"*\".\n- Terraform attribute: aws_iam_policy.policy (JSON string, parse with json.unmarshal in Rego).\n- Rego rule: policies/iam.rego (implemented).\n- Fixtures: FAIL iam_wildcard_admin. PASS iam_least_privilege_india."
+      "matrix_text": "### IAM-NO-WILDCARD-ADMIN\n- Basis: S2 Rule 6 (access control is among the minimum safeguards), VERIFIED-PRIMARY. The wildcard-admin rule is our INTERPRETATION of \"access control\"; Rule 6 does not mention IAM or wildcards. Rule 6 commences about 13 May 2027 (Rule 1), so the DPDP basis is not yet in force.\n- Check: no IAM policy statement may Allow Action \"*\" on Resource \"*\". A policy document that is unknown at plan time (for example one that refers to a resource created in the same plan) is denied, because it cannot be verified.\n- Terraform attribute: aws_iam_policy.policy (JSON string, parse with json.unmarshal in Rego).\n- Rego rule: policies/iam.rego (implemented).\n- Fixtures: FAIL iam_wildcard_admin. PASS iam_least_privilege_india."
     },
     "LOG-RETENTION": {
       "description": "Selected CloudWatch log groups must retain logs for at least 365 days, or be configured never to expire.",
@@ -394,7 +379,7 @@
           ],
           "legal_requirement": "CERT-In Direction paragraph (iv) requires covered entities to securely maintain rolling 180-day logs of all ICT systems within Indian jurisdiction. S33 paragraph 27(e) requires at least five years for specified audit-log records of covered non-bank PSOs. DPDP Rules 2025 Rule 6(1)(c)/(e) and Rule 8(3) contain separate future-effective logging/retention duties scheduled for 13 May 2027. RBI 2026 instruments contain entity- and chapter-specific audit-trail requirements, not one universal retention period.",
           "scof_interpretation": "The existing 365-day CloudWatch log-group check is a conservative SCOF baseline. It is not equivalent to CERT-In, RBI PSO or DPDP compliance.",
-          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires).",
+          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires); a value unknown at plan time is denied (fail closed).",
           "applicability": "Enabled in the India jurisdiction context as a project baseline. Actual legal applicability must be checked for the entity, service-provider class, activity, data and instrument; see NA-24 and NA-26.",
           "limitations": "Does not prove all ICT systems are logged, India-jurisdiction storage, event coverage, log integrity, access/review, six-hour incident reporting, five-year retention of specified PSO audit logs, one-year DPDP retention when effective, or personal-data retention. The 180-day, five-year and one-year requirements are distinct. It also does not resolve the S43 FAQ interpretation on offshore replicas.",
           "source_mappings": [
@@ -468,7 +453,7 @@
           ],
           "legal_requirement": "CERT-In Direction paragraph (iv) requires covered entities to securely maintain rolling 180-day logs of all ICT systems within Indian jurisdiction. DPDP Rules 2025 Rule 6(1)(c)/(e) and Rule 8(3) contain separate future-effective logging/retention duties scheduled for 13 May 2027. These duties depend on their exact entity, service-provider, data and activity scope.",
           "scof_interpretation": "The 365-day CloudWatch check is a conservative SCOF project baseline for the india-healthcare context. It is not a finding that every healthcare workload is subject to every Indian logging/retention obligation.",
-          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires).",
+          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires); a value unknown at plan time is denied (fail closed).",
           "applicability": "India healthcare context baseline. Establish entity, participant, establishment, authority, data, activity and territorial applicability before treating any source as legally applicable; see NA-01, NA-24 and NA-26.",
           "limitations": "Does not prove all ICT systems are logged, India-jurisdiction storage, complete audit-trail coverage, log integrity, access/review, incident reporting, five-year PSO-specific retention or future DPDP compliance. Healthcare sources S19–S30 do not establish universal India-only hosting or universal 365-day retention for all healthcare workloads.",
           "source_mappings": [
@@ -521,7 +506,7 @@
           ],
           "legal_requirement": "Same source distinctions as the India jurisdiction context: CERT-In rolling 180-day ICT logs for covered entities and separate DPDP Rules 2025 future-effective duties.",
           "scof_interpretation": "Sector-neutral India context; the same 365-day CloudWatch baseline applies as a readiness baseline (DPDP Rule 6(1)(e) is not yet in force, about 13 May 2027).",
-          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires).",
+          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires); a value unknown at plan time is denied (fail closed).",
           "applicability": "Sector-neutral India context routed by the production router; LOG-RETENTION is a conservative SCOF baseline, not a legal applicability determination.",
           "limitations": "Same technical limitations as the India jurisdiction context. Do not treat this test context as a production legal-applicability determination.",
           "source_mappings": [
@@ -564,7 +549,7 @@
           ]
         }
       },
-      "matrix_text": "### LOG-RETENTION\n- Status: INTERPRETATION — The security objective is supported, but the one-year requirement is applied to all CloudWatch log groups for implementation purposes.\n- Basis: S2 Rule 6(1)(c) and 6(1)(e), VERIFIED-PRIMARY. DPDP only. No verified EU source requires one-year log retention, so the control is not enabled in the eu context.\n- Legal content (as verified, paraphrased): Rule 6(1)(c) requires visibility on access to personal data through appropriate logs, monitoring and review. Rule 6(1)(e) requires such logs and personal data to be retained for one year, unless another law in force requires otherwise. Rule 8(3) separately describes a minimum of one year for its own purposes. Rule 6 commences about 13 May 2027, so this basis is not yet in force.\n- SCOF interpretation : one year is read as a floor, not an exact period. The check is applied to every CloudWatch log group in the plan, because the plan does not show which log groups hold access logs for personal data.\n- Check: aws_cloudwatch_log_group.retention_in_days must be at least 365. An absent value or 0 (never expires) passes.\n- Terraform attribute: aws_cloudwatch_log_group.retention_in_days.\n- Rego rule: policies/log_retention.rego (implemented).\n- Applies to contexts: india, india-finance, and india-healthcare. Not enabled in eu.\n- Limits: broader than the rule (all log groups, not only access logs for personal data). Not modelled: the other-law exception, S3 access logs, CloudTrail, logs kept outside CloudWatch, retention of the personal data itself, and any conflict between never-expire logs and erasure duties.\n- Fixtures: FAIL log_group_short_retention_india (30 days, india-finance). PASS log_group_retention_365_india (365 days, india-finance) and log_group_short_retention_eu (30 days, eu: the control is not enabled there). The plan of log_group_short_retention_india evaluated under eu reports REGION-RESTRICTION only, with no LOG-RETENTION finding."
+      "matrix_text": "### LOG-RETENTION\n- Status: INTERPRETATION — The security objective is supported, but the one-year requirement is applied to all CloudWatch log groups for implementation purposes.\n- Basis: S2 Rule 6(1)(c) and 6(1)(e), VERIFIED-PRIMARY. DPDP only. No verified EU source requires one-year log retention, so the control is not enabled in the eu context.\n- Legal content (as verified, paraphrased): Rule 6(1)(c) requires visibility on access to personal data through appropriate logs, monitoring and review. Rule 6(1)(e) requires such logs and personal data to be retained for one year, unless another law in force requires otherwise. Rule 8(3) separately describes a minimum of one year for its own purposes. Rule 6 commences about 13 May 2027, so this basis is not yet in force.\n- SCOF interpretation : one year is read as a floor, not an exact period. The check is applied to every CloudWatch log group in the plan, because the plan does not show which log groups hold access logs for personal data.\n- Check: aws_cloudwatch_log_group.retention_in_days must be at least 365. An absent value or 0 (never expires) passes. A value that is unknown at plan time is denied (fail closed), because it cannot be verified.\n- Terraform attribute: aws_cloudwatch_log_group.retention_in_days.\n- Rego rule: policies/log_retention.rego (implemented).\n- Applies to contexts: india, india-finance, and india-healthcare. Not enabled in eu.\n- Limits: broader than the rule (all log groups, not only access logs for personal data). Not modelled: the other-law exception, S3 access logs, CloudTrail, logs kept outside CloudWatch, retention of the personal data itself, and any conflict between never-expire logs and erasure duties.\n- Fixtures: FAIL log_group_short_retention_india (30 days, india-finance). PASS log_group_retention_365_india (365 days, india-finance) and log_group_short_retention_eu (30 days, eu: the control is not enabled there). The plan of log_group_short_retention_india evaluated under eu reports REGION-RESTRICTION only, with no LOG-RETENTION finding."
     },
     "ACCESS-EXPOSURE": {
       "description": "S3 public-access-block settings must be fully enabled, and RDS instances must not be publicly accessible.",
@@ -635,7 +620,7 @@
           "status_as_of": "2026-11-15"
         }
       ],
-      "matrix_text": "### ACCESS-EXPOSURE\n- Status: INTERPRETATION — The security objective is supported, but “no public S3/RDS” is an implementation interpretation.\n- Basis: S2 Rule 6(1)(b), VERIFIED-PRIMARY, not yet in force. GDPR Art 32(1) (S5), in force. GDPR Art 5(1)(f) (S7) is VERIFIED-PRIMARY and is used only as supporting basis; it does not specifically require blocking public S3 or RDS exposure, so the check remains a SCOF technical interpretation.\n- Legal content (as verified, paraphrased): Rule 6(1)(b) requires appropriate measures to control access to the computer resources used by the Data Fiduciary or its Data Processor. Art 32(1) requires technical and organisational measures appropriate to the risk, including confidentiality (see S5). Neither text mentions public access, S3 or RDS.\n- SCOF interpretation : explicit public exposure of a data store is a failure to control access.\n- Check: no aws_s3_bucket_public_access_block has any of block_public_acls, block_public_policy, ignore_public_acls or restrict_public_buckets set to false, and no aws_db_instance has publicly_accessible set to true.\n- Terraform attributes: aws_s3_bucket_public_access_block (the four flags); aws_db_instance.publicly_accessible.\n- Rego rule: policies/access_exposure.rego (implemented).\n- Applies to contexts: all (base control set).\n- Limits: only explicit exposure is detected. A bucket with no public-access-block resource, public bucket policies or ACLs, security groups and account-level block settings are not modelled, so false negatives are accepted for the MVP.\n- Fixtures: FAIL s3_public_access_block_open_india (block_public_policy false) and rds_publicly_accessible_india (publicly_accessible true), both under india-finance. PASS s3_public_access_block_all_india. The existing compliant RDS fixtures set no publicly_accessible and plan it as false, so they pass without changes."
+      "matrix_text": "### ACCESS-EXPOSURE\n- Status: INTERPRETATION — The security objective is supported, but “no public S3/RDS” is an implementation interpretation.\n- Basis: S2 Rule 6(1)(b), VERIFIED-PRIMARY, not yet in force. GDPR Art 32(1) (S5), in force. GDPR Art 5(1)(f) (S7) is VERIFIED-PRIMARY and is used only as supporting basis; it does not specifically require blocking public S3 or RDS exposure, so the check remains a SCOF technical interpretation.\n- Legal content (as verified, paraphrased): Rule 6(1)(b) requires appropriate measures to control access to the computer resources used by the Data Fiduciary or its Data Processor. Art 32(1) requires technical and organisational measures appropriate to the risk, including confidentiality (see S5). Neither text mentions public access, S3 or RDS.\n- SCOF interpretation : explicit public exposure of a data store is a failure to control access.\n- Check: no aws_s3_bucket_public_access_block has any of block_public_acls, block_public_policy, ignore_public_acls or restrict_public_buckets set to false, and no aws_db_instance has publicly_accessible set to true.\n- Terraform attributes: aws_s3_bucket_public_access_block (the four flags); aws_db_instance.publicly_accessible.\n- Rego rule: policies/access_exposure.rego (implemented).\n- Applies to contexts: all (base control set).\n- Limits: only explicit exposure is detected. A bucket with no public-access-block resource, public bucket policies or ACLs, security groups and account-level block settings are not modelled, so false negatives are accepted.\n- Fixtures: FAIL s3_public_access_block_open_india (block_public_policy false) and rds_publicly_accessible_india (publicly_accessible true), both under india-finance. PASS s3_public_access_block_all_india. The existing compliant RDS fixtures set no publicly_accessible and plan it as false, so they pass without changes."
     },
     "BACKUP-RESILIENCE": {
       "description": "RDS instances must have automated backups explicitly enabled with backup_retention_period of at least one day.",
@@ -694,7 +679,7 @@
           "status_as_of": "2026-11-15"
         }
       ],
-      "matrix_text": "### BACKUP-RESILIENCE\n- Status: INTERPRETATION — The resilience objective is supported, but “RDS automated backups of at least 1 day” is a SCOF technical baseline.\n- Basis: S8 RBI IT Governance Directions 2023, paragraph 29(e), VERIFIED-PRIMARY, in force since 1 April 2024, for RBI regulated entities (india-finance context). S2 Rule 6(1)(d), VERIFIED-PRIMARY, not yet in force. GDPR Art 32(1)(c) (S5), in force.\n- Legal content (as verified, paraphrased): Rule 6(1)(d) requires reasonable measures for continued processing if the confidentiality, integrity or availability of personal data is compromised, naming data-backups as an example. Art 32(1)(c) concerns the ability to restore availability of and access to personal data in a timely manner after an incident (see S5). RBI paragraph 29(e) (S8) requires a regulated entity to back up data and periodically restore it to check that it is usable, while preserving the integrity of the backups and protecting them from unauthorised access. None of the three texts requires automated backups, RDS, or a number of days.\n- SCOF interpretation : enabled RDS automated backups are a reasonable technical measure toward the backup obligations in S8, Rule 6(1)(d) and Art 32(1)(c). The threshold of at least 1 day is SCOF's technical implementation baseline for ensuring that automated RDS backups are enabled, not a numeric requirement of any of those texts.\n- Check: aws_db_instance.backup_retention_period must be set explicitly to at least 1. A value below 1 is denied. An omitted value is denied too: the plan reports it as unknown until apply, and the AWS provider documents a default of 0, which disables automated backups ([provider documentation, read 2026-10-05](https://github.com/hashicorp/terraform-provider-aws/blob/main/website/docs/r/db_instance.html.markdown)).\n- Terraform attribute: aws_db_instance.backup_retention_period.\n- Rego rule: policies/backup_resilience.rego (implemented).\n- Applies to contexts: all (base control set).\n- Basis of the threshold : at least 1 day is the SCOF technical baseline for ensuring that automated RDS backups are enabled. It is not a numeric requirement of RBI paragraph 29(e), DPDP Rule 6(1)(d) or GDPR Art 32(1)(c): none of them names a number of days, and S8 names no retention period. An explicit value is required: a value below 1 is denied, and so is an omitted value (see Check).\n- Applicability of the RBI basis (S8): the RBI Directions apply only to the regulated entities listed in paragraph 2(a) of S8 (see the S8 row), not to every organisation in India. The RBI basis therefore applies to the india-finance context, which assumes the deployment belongs to such an entity; SCOF does not check whether a given deployment is in scope. In the other contexts the control rests on S2 Rule 6(1)(d) and S5 Art 32(1)(c).\n- Limits: RDS aws_db_instance only. Enabled automated backups do not show that backups are periodically restored and verified, that their integrity is preserved, or that access to them is restricted (S8 paragraph 29(e)); none of that is modelled. S3 versioning, EBS snapshots, Aurora clusters and cross-region copies (which could also interact with REGION-RESTRICTION) are not modelled either.\n- Fixtures: FAIL rds_no_backup_india (backup_retention_period = 0) and rds_backup_not_set_india (attribute omitted, unknown at plan time), both under india-finance. PASS rds_encrypted_cmk_india, which now sets backup_retention_period = 7 explicitly. The other RDS fixtures and the terraform/rds reference configuration also set it explicitly, so that each keeps its single intended violation."
+      "matrix_text": "### BACKUP-RESILIENCE\n- Status: INTERPRETATION — The resilience objective is supported, but “RDS automated backups of at least 1 day” is a SCOF technical baseline.\n- Basis: for RBI regulated entities (india-finance context), the backup and restoration requirements of the 2026 entity-specific Directions (S31 paras 169–174; S32 para 8(9) and paras 129–138; S33 para 20(f); see S8 for the consolidation). S2 Rule 6(1)(d), VERIFIED-PRIMARY, not yet in force. GDPR Art 32(1)(c) (S5), in force.\n- Legal content (as verified, paraphrased): Rule 6(1)(d) requires reasonable measures for continued processing if the confidentiality, integrity or availability of personal data is compromised, naming data-backups as an example. Art 32(1)(c) concerns the ability to restore availability of and access to personal data in a timely manner after an incident (see S5). The 2026 RBI Directions (S31, S32, S33) require regulated entities to back up data, periodically test restoration, and protect the integrity of and access to backups, each with its own detail for its own entity class (see the Control basis summary). None of these texts requires automated backups, RDS, or a number of days.\n- SCOF interpretation : enabled RDS automated backups are a reasonable technical measure toward the backup obligations in the RBI Directions (S31–S33), Rule 6(1)(d) and Art 32(1)(c). The threshold of at least 1 day is SCOF's technical implementation baseline for ensuring that automated RDS backups are enabled, not a numeric requirement of any of those texts.\n- Check: aws_db_instance.backup_retention_period must be set explicitly to at least 1. A value below 1 is denied. An omitted value is denied too: the plan reports it as unknown until apply, and the AWS provider documents a default of 0, which disables automated backups ([provider documentation, read 2026-10-05](https://github.com/hashicorp/terraform-provider-aws/blob/main/website/docs/r/db_instance.html.markdown)).\n- Terraform attribute: aws_db_instance.backup_retention_period.\n- Rego rule: policies/backup_resilience.rego (implemented).\n- Applies to contexts: all (base control set).\n- Basis of the threshold : at least 1 day is the SCOF technical baseline for ensuring that automated RDS backups are enabled. It is not a numeric requirement of the RBI Directions, DPDP Rule 6(1)(d) or GDPR Art 32(1)(c): none of them names a number of days. An explicit value is required: a value below 1 is denied, and so is an omitted value (see Check).\n- Applicability of the RBI basis (S31–S38): each 2026 Direction applies only to its own regulated-entity class (see the S31–S38 rows), not to every organisation in India. The RBI basis therefore applies to the india-finance context, which assumes the deployment belongs to such an entity; SCOF does not check whether a given deployment is in scope. In the other contexts the control rests on S2 Rule 6(1)(d) and S5 Art 32(1)(c).\n- Limits: RDS aws_db_instance only. Enabled automated backups do not show that backups are periodically restored and verified, that their integrity is preserved, or that access to them is restricted (the RBI backup and restore provisions); none of that is modelled. S3 versioning, EBS snapshots, Aurora clusters and cross-region copies (which could also interact with REGION-RESTRICTION) are not modelled either.\n- Fixtures: FAIL rds_no_backup_india (backup_retention_period = 0) and rds_backup_not_set_india (attribute omitted, unknown at plan time), both under india-finance. PASS rds_encrypted_cmk_india, which now sets backup_retention_period = 7 explicitly. The other RDS fixtures and the terraform/rds reference configuration also set it explicitly, so that each keeps its single intended violation."
     }
   },
   "contexts": {

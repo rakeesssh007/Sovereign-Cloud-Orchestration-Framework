@@ -1,5 +1,6 @@
 import importlib
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -133,6 +134,15 @@ class LocationTests(unittest.TestCase):
             f, n = core.find_location(d, core.Violation("DATA-ENCRYPTION", "aws_x.y", "r", "raw"))
             self.assertEqual((f.name, n), ("main.tf", 1))
 
+    def test_shared_cache_reads_each_file_once(self):
+        with self._dir() as d:
+            cache = {}
+            violation = core.Violation("DATA-ENCRYPTION", "aws_s3_bucket.data", "r", "raw")
+            core.find_location(d, violation, cache)
+            (Path(d) / "main.tf").write_text("# changed\n", encoding="utf-8")
+            f, n = core.find_location(d, violation, cache)
+            self.assertEqual(n, 5)  # still the cached text, so the file was not read again
+
 class ExecutableOverrideTests(unittest.TestCase):
     def test_explicit_executable_path_is_used(self):
         with tempfile.TemporaryDirectory() as td:
@@ -175,13 +185,9 @@ class PluginCacheOverrideTests(unittest.TestCase):
                     importlib.reload(core)
                     self.assertEqual(core.PLUGIN_CACHE, Path(td).expanduser())
             finally:
-                # Restore the imported module's original configuration so this
-                # test cannot leak state into later tests.
-                with patch.dict(
-                    os.environ,
-                    {"SCOF_TF_PLUGIN_CACHE": str(original_cache)},
-                ):
-                    importlib.reload(core)
+                # Reload with the original environment so this test cannot
+                # leak state into later tests.
+                importlib.reload(core)
 
     def test_missing_plugin_cache_is_not_passed_to_terraform(self):
         with tempfile.TemporaryDirectory() as td:
@@ -206,6 +212,22 @@ class PluginCacheOverrideTests(unittest.TestCase):
             self.assertEqual(
                 env["TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE"], "true"
             )
+
+class TerraformEnvironmentTests(unittest.TestCase):
+    def test_real_aws_credentials_are_replaced_with_mock_values(self):
+        real = {"AWS_ACCESS_KEY_ID": "AKIAREAL", "AWS_SECRET_ACCESS_KEY": "secret",
+                "AWS_SESSION_TOKEN": "token", "AWS_PROFILE": "prod"}
+        with patch.dict(os.environ, real, clear=True):
+            env = core._tf_env()
+        self.assertEqual(env["AWS_ACCESS_KEY_ID"], "mock")
+        self.assertEqual(env["AWS_SECRET_ACCESS_KEY"], "mock")
+        self.assertNotIn("AWS_SESSION_TOKEN", env)
+        self.assertNotIn("AWS_PROFILE", env)
+
+    def test_a_process_that_does_not_finish_is_a_tooling_error(self):
+        with self.assertRaises(core.ScofError):
+            core._run([sys.executable, "-c", "import time; time.sleep(5)"], timeout=0.2)
+
 
 class EnrichmentConfigurationTests(unittest.TestCase):
     def test_invalid_enrichment_configuration_is_a_tooling_error(self):

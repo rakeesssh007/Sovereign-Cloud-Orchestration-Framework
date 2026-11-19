@@ -1,6 +1,7 @@
-"""Unit tests for SCOF finding enrichment (Phase 2C)."""
+"""Unit tests for SCOF finding enrichment."""
 
 import pathlib
+import re
 import sys
 import tempfile
 import unittest
@@ -38,7 +39,7 @@ CATALOGUE = {
                     "basis_label": "INTERPRETATION",
                     "sources": ["S2", "S42", "S43"],
                     "legal_requirement": "CERT-In and scheduled DPDP duties have distinct scope.",
-                    "scof_interpretation": "365-day CloudWatch project baseline.",
+                    "scof_interpretation": "365-day CloudWatch SCOF baseline.",
                     "applicability": "Healthcare entity and workload applicability must be checked.",
                     "limitations": "Does not prove full ICT logging or legal compliance.",
                 },
@@ -46,7 +47,7 @@ CATALOGUE = {
                     "basis_label": "INTERPRETATION",
                     "sources": ["S2", "S42", "S43"],
                     "legal_requirement": "Finance source wording.",
-                    "scof_interpretation": "365-day CloudWatch project baseline.",
+                    "scof_interpretation": "365-day CloudWatch SCOF baseline.",
                     "applicability": "Finance entity and activity applicability must be checked.",
                     "limitations": "Does not prove full ICT logging or legal compliance.",
                 },
@@ -159,21 +160,35 @@ class TestEnrichment(unittest.TestCase):
         self.assertEqual(result["enrichment_status"], "UNKNOWN")
         self.assertNotIn("basis_label", result)
 
-    def test_audit_spelling_does_not_override_policy_template(self):
+    def test_backup_unknown_value_message_is_registered(self):
         result = sf.enrich(
             "BACKUP-RESILIENCE: aws_db_instance.x: backup_retention_period is not set to a known value at plan time; set it explicitly to at least 1",
+            "eu", sf._load_catalogue()
+        )
+        self.assertEqual(result["enrichment_status"], "OK")
+
+    def test_misspelt_message_is_not_registered(self):
+        result = sf.enrich(
+            "BACKUP-RESILIENCE: aws_db_instance.x: backup_retention_period is not set to a known value at plan time; set it explicitly to atleast 1",
             "eu", CATALOGUE
         )
         self.assertEqual(result["enrichment_status"], "UNKNOWN")
 
-    def test_ui_field_map_hook_is_empty(self):
-        result = sf.enrich(
-            "DATA-ENCRYPTION: aws_db_instance.x: RDS instance must set storage_encrypted = true",
-            "india-healthcare",
-            CATALOGUE,
-        )
-        self.assertEqual(result["ui_field_ids"], {})
-        self.assertEqual(sf.ui_field_ids("DATA-ENCRYPTION", "eu"), {})
+    def test_every_registry_template_is_a_policy_message(self):
+        policies = pathlib.Path(__file__).resolve().parents[2] / "policies"
+        used = set()
+        for path in policies.rglob("*.rego"):
+            if not path.name.endswith("_test.rego"):
+                used.update(re.findall(r'sprintf\("((?:[^"\\]|\\.)*)"', path.read_text(encoding="utf-8")))
+        registered = {t["template"] for t in sf._load_message_registry()}
+        self.assertEqual(registered, used)
+
+    def test_enrich_all_loads_the_registry_once(self):
+        message = "DATA-ENCRYPTION: aws_db_instance.x: RDS instance must set storage_encrypted = true"
+        with patch.object(sf, "_load_message_registry", wraps=sf._load_message_registry) as load:
+            results = sf.enrich_all([message, message, message], "eu", CATALOGUE)
+        load.assert_called_once()
+        self.assertTrue(all(r["enrichment_status"] == "OK" for r in results))
 
     def test_unknown_context_uses_top_level_if_available(self):
         result = sf.enrich(
@@ -254,46 +269,6 @@ class TestCatalogueLoader(unittest.TestCase):
             pathlib.Path(name).unlink(missing_ok=True)
 
 
-class TestUiFieldMapEquivalence(unittest.TestCase):
-    MESSAGE = "DATA-ENCRYPTION: aws_db_instance.x: RDS instance must set storage_encrypted = true"
-
-    def test_with_map_changes_only_ui_field_ids(self):
-        import json
-        import os
-        from unittest.mock import patch
-        with tempfile.TemporaryDirectory() as tmp:
-            map_path = pathlib.Path(tmp) / "scof_ui_map.json"
-            map_path.write_text(json.dumps({"version": 1, "mappings": [{
-                "control_id": "DATA-ENCRYPTION",
-                "resource_type": "aws_db_instance",
-                "field_ids": ["storage.encryption.enabled", "storage.encryption.key"],
-            }]}), encoding="utf-8")
-            with patch.dict(os.environ, {}, clear=True):
-                without_map = sf.enrich_all([self.MESSAGE], "india-healthcare", CATALOGUE,
-                                            resource_types=["aws_db_instance"])[0]
-            with patch.dict(os.environ, {"SCOF_UI_FIELD_MAP": str(map_path)}, clear=True):
-                with_map = sf.enrich_all([self.MESSAGE], "india-healthcare", CATALOGUE,
-                                         resource_types=["aws_db_instance"])[0]
-        expected_ids = {"field_ids": ["storage.encryption.enabled", "storage.encryption.key"]}
-        self.assertEqual(with_map["ui_field_ids"], expected_ids)
-        self.assertEqual(without_map["ui_field_ids"], {})
-        without_map.pop("ui_field_ids")
-        with_map.pop("ui_field_ids")
-        self.assertEqual(with_map, without_map)
-
-    def test_missing_or_invalid_map_returns_no_ids(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            missing = pathlib.Path(tmp) / "missing.json"
-            invalid = pathlib.Path(tmp) / "invalid.json"
-            invalid.write_text("not-json", encoding="utf-8")
-            self.assertEqual(sf._load_ui_field_map(missing), {})
-            self.assertEqual(sf._load_ui_field_map(invalid), {})
-
-    def test_resource_type_mismatch_returns_no_ids(self):
-        mapping = {("DATA-ENCRYPTION", "aws_db_instance"): ["field.one"]}
-        self.assertEqual(sf.ui_field_ids("DATA-ENCRYPTION", "eu", "aws_s3_bucket", mapping), {})
-
-
 class TestProductionCatalogueCoverage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -302,9 +277,9 @@ class TestProductionCatalogueCoverage(unittest.TestCase):
     def test_catalogue_has_eight_controls_and_version_metadata(self):
         self.assertEqual(len(self.catalogue["controls"]), 8)
         meta = self.catalogue["_meta"]
-        for key in ("version", "content_hash", "matrix_commit", "status_as_of", "change_log"):
+        for key in ("version", "content_hash", "status_as_of", "change_log"):
             self.assertIn(key, meta)
-        self.assertEqual(meta["version"], "1.3.0")
+        self.assertEqual(meta["version"], "1.4.0")
 
     def test_three_production_context_compositions(self):
         expected = {

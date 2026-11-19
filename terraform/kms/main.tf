@@ -18,7 +18,7 @@ provider "aws" {
   skip_region_validation      = true
 }
 resource "aws_kms_key" "data" {
-  description             = "Customer-managed key with rotation (fixture)"
+  description             = "Customer-managed key with rotation"
   enable_key_rotation     = true
   deletion_window_in_days = 30
 }

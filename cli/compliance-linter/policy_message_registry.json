@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.0.0",
-    "source_of_truth": "sprintf templates in production policies/*.rego supplied on 2026-11-17",
-    "note": "Exact full-message matching. Literal spelling is intentionally preserved, including \"atleast\" in backup_resilience.rego. CONTROL-SET is a configuration finding, not one of the eight catalogue controls. message_audit.csv had observed text discrepancies and is not used to override policy source."
+    "source_of_truth": "sprintf templates in policies/*.rego",
+    "note": "Exact full-message matching: every template must equal a sprintf template in policies/*.rego. CONTROL-SET is a configuration finding, not one of the eight catalogue controls."
   },
   "templates": [
     {
@@ -37,8 +37,8 @@
     },
     {
       "control_id": "BACKUP-RESILIENCE",
-      "template": "%s: %s: backup_retention_period is not set to a known value at plan time; set it explicitly to atleast %d",
-      "regex": "^.+?:\\ .+?:\\ backup_retention_period\\ is\\ not\\ set\\ to\\ a\\ known\\ value\\ at\\ plan\\ time;\\ set\\ it\\ explicitly\\ to\\ atleast\\ -?\\d+$",
+      "template": "%s: %s: backup_retention_period is not set to a known value at plan time; set it explicitly to at least %d",
+      "regex": "^.+?:\\ .+?:\\ backup_retention_period\\ is\\ not\\ set\\ to\\ a\\ known\\ value\\ at\\ plan\\ time;\\ set\\ it\\ explicitly\\ to\\ at\\ least\\ -?\\d+$",
       "kind": "control"
     },
     {
@@ -93,6 +93,12 @@
       "control_id": "IAM-NO-WILDCARD-ADMIN",
       "template": "%s: %s: attaches the AdministratorAccess managed policy",
       "regex": "^.+?:\\ .+?:\\ attaches\\ the\\ AdministratorAccess\\ managed\\ policy$",
+      "kind": "control"
+    },
+    {
+      "control_id": "IAM-NO-WILDCARD-ADMIN",
+      "template": "%s: %s: policy is not known at plan time, cannot verify",
+      "regex": "^.+?:\\ .+?:\\ policy\\ is\\ not\\ known\\ at\\ plan\\ time,\\ cannot\\ verify$",
       "kind": "control"
     },
     {

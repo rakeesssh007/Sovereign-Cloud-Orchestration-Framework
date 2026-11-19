@@ -6,8 +6,8 @@ router, then the shared CLI (cli/compliance-linter/scof_lint.py) evaluates the c
 script never reads violation text; it only uses the CLI exit code (0 pass, 1 policy
 violations, 2 tooling error).
 
-Coverage fails closed: a terraform/ directory with a main.tf and no declared deployment context, or
-a declared target without a main.tf, is an error and nothing is evaluated.
+Coverage fails closed: a terraform/ directory with .tf files and no declared deployment context, or
+a declared target without .tf files, is an error and nothing is evaluated.
 
 Exit code: 0 all targets pass, 1 at least one policy violation, 2 tooling, routing or coverage error.
 """
@@ -55,7 +55,7 @@ def load_targets(path):
 
 def discover(tf_root):
     found = set()
-    for p in tf_root.rglob("main.tf"):
+    for p in tf_root.rglob("*.tf"):
         if ".terraform" in p.parts:
             continue
         found.add(p.parent.relative_to(ROOT).as_posix())
@@ -74,9 +74,9 @@ def main():
     discovered = discover(ROOT / "terraform")
     problems = []
     for d in sorted(discovered - declared):
-        problems.append(d + " has a main.tf but no declared deployment context in targets.json")
+        problems.append(d + " has .tf files but no declared deployment context in targets.json")
     for d in sorted(declared - discovered):
-        problems.append(d + " is declared in targets.json but has no main.tf")
+        problems.append(d + " is declared in targets.json but has no .tf files")
     if problems:
         for p in problems:
             print("SCOF CI GATE ERROR: " + p, flush=True)
