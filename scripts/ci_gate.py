@@ -64,7 +64,7 @@ def discover(tf_root):
 
 def main():
     ap = argparse.ArgumentParser(description="SCOF CI gate for terraform/ configurations")
-    ap.add_argument("--engine", choices=["opa", "conftest"], default="conftest")
+    ap.add_argument("--engine", choices=["opa", "conftest", "both"], default="both")
     ap.add_argument("--targets", default=str(TARGETS_FILE))
     ap.add_argument("--out", default=str(ROOT / "ci-results" / "gate_summary.json"))
     args = ap.parse_args()

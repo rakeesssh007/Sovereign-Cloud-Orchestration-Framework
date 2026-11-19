@@ -6,7 +6,7 @@ SCOF checks Terraform plans against one shared Rego policy library. Two enforcem
 
 ```text
 Developer path:  .tf files --> scof_lint.py --> terraform plan + show --> plan JSON --+
-                                                                                      +--> scof_core --> OPA / Conftest --> policies/
+                                                                                      +--> scof_core --> OPA and Conftest (must agree) --> policies/
 CI path:         pull request --> ci_gate.py --> scof_lint.py (same code) ------------+
 ```
 
@@ -17,7 +17,7 @@ The CI gate calls the same linter as the developer. `scof_core.py` is the only m
 | Component | Location | Role |
 |---|---|---|
 | Policy library | `policies/` | One Rego package per control; `main.rego` combines them |
-| Shared consumer | `cli/compliance-linter/scof_core.py` | Generates plan JSON, runs OPA or Conftest, parses results, maps violations to source lines |
+| Shared consumer | `cli/compliance-linter/scof_core.py` | Generates plan JSON, runs OPA and Conftest and requires identical findings, parses results, maps violations to source lines |
 | CLI linter | `cli/compliance-linter/scof_lint.py` | Command line and `--watch` mode |
 | Router | `router/policy-routing/scof_router.py` | Maps jurisdiction and sector to a deployment context |
 | Routing data | `router/policy-routing/*.json` | `routing.json`, `region_allowlists.json`, `control_sets.json`, `targets.json`, `contexts/<context>.json` |
@@ -47,7 +47,7 @@ The routing fails closed:
 
 ## Engines
 
-OPA (run by the CLI) and Conftest (run by the CI gate) load the same policy directory and data. The fixture self-test runs every fixture through both and fails if their results differ.
+By default every check runs on both engines. OPA and Conftest load the same policy directory and data, and the result is accepted only if both return exactly the same findings. If they differ, or if either one fails, `scof_core.py` raises a tool error (exit code 2): the result is never a pass and never a policy verdict. This applies to the CLI, the VS Code task and the CI gate. A single engine can still be chosen with `--engine opa` or `--engine conftest` for diagnostics and for the test scripts, which run each engine separately and compare them with the expected results. The fixture self-test runs every fixture through both engines and fails if their results differ.
 
 ## Exit codes
 

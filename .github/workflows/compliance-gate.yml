@@ -80,7 +80,7 @@ jobs:
           conftest --version
           python --version
       - name: Evaluate deployable Terraform configurations
-        run: python scripts/ci_gate.py --engine conftest --out ci-results/gate_summary.json
+        run: python scripts/ci_gate.py --engine both --out ci-results/gate_summary.json
       - name: Upload gate summary
         if: always()
         uses: actions/upload-artifact@v7

@@ -41,6 +41,11 @@ class ScofError(Exception):
     This is never a policy verdict."""
 
 
+class EngineDisagreement(ScofError):
+    """OPA and Conftest returned different findings for the same plan and context.
+    The result cannot be trusted, so it is a tooling error and never a pass."""
+
+
 @dataclass
 class Violation:
     control: str
@@ -274,12 +279,48 @@ def evaluate_conftest(plan_json, context):
     return sorted(set(msgs)), secs
 
 
+ENGINES = ("opa", "conftest")
+
+
+def evaluate_both(plan_json, context):
+    """Run OPA and Conftest on the same plan and context and require identical findings.
+
+    Returns (messages, seconds) only when both engines ran successfully and returned exactly the same
+    set of violation messages. If either engine fails, or the two sets differ, raise ScofError
+    (EngineDisagreement for a difference): the result is a tooling error, never a pass.
+    """
+    results, errors, total = {}, {}, 0.0
+    for name in ENGINES:
+        try:
+            msgs, secs = evaluate(name, plan_json, context)
+        except ScofError as exc:
+            errors[name] = str(exc)
+            continue
+        results[name] = msgs
+        total += secs
+    if errors:
+        detail = "; ".join(f"{n}: {' '.join(e.split())[:200]}" for n, e in errors.items())
+        raise ScofError("Both engines must run successfully; no result was produced (" + detail + ")")
+    if results["opa"] != results["conftest"]:
+        only_opa = sorted(set(results["opa"]) - set(results["conftest"]))
+        only_cft = sorted(set(results["conftest"]) - set(results["opa"]))
+        parts = []
+        if only_opa:
+            parts.append("only OPA reported: " + " | ".join(only_opa)[:300])
+        if only_cft:
+            parts.append("only Conftest reported: " + " | ".join(only_cft)[:300])
+        raise EngineDisagreement("ENGINE-DISAGREEMENT: OPA and Conftest gave different findings (" + "; ".join(parts) + ")")
+    return results["opa"], total
+
+
 def evaluate(engine: str, plan_json, context):
     if engine == "opa":
         return evaluate_opa(plan_json, context)
     if engine == "conftest":
         return evaluate_conftest(plan_json, context)
-    raise ScofError(f"Unknown engine '{engine}' (use opa or conftest)")
+    if engine == "both":
+        return evaluate_both(plan_json, context)
+    raise ScofError(f"Unknown engine '{engine}' (use opa, conftest or both)")
 
 
 # ---------------------------------------------------------------- locations
@@ -307,7 +348,7 @@ def find_location(tf_dir, v: Violation):
 
 # ---------------------------------------------------------------- pipeline
 
-def lint(context, engine="opa", tf_dir=None, plan=None, save_plan=None) -> LintResult:
+def lint(context, engine="both", tf_dir=None, plan=None, save_plan=None) -> LintResult:
     try:
         scof_findings.validate_configuration()
     except RuntimeError as exc:

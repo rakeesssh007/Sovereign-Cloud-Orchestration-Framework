@@ -219,3 +219,81 @@ class EnrichmentConfigurationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DualEngineTests(unittest.TestCase):
+    """Every check runs on OPA and Conftest and passes only if their findings are identical."""
+
+    PLAN = "unused.json"
+    MSG = "REGION-RESTRICTION: provider.aws: uses region us-east-1, which is not allowed for context eu"
+
+    def _patch(self, opa, conftest):
+        return (patch.object(core, "evaluate_opa", side_effect=opa if callable(opa) else None, return_value=None if callable(opa) else opa),
+                patch.object(core, "evaluate_conftest", side_effect=conftest if callable(conftest) else None, return_value=None if callable(conftest) else conftest))
+
+    def test_identical_findings_are_returned_once(self):
+        a, b = self._patch(([self.MSG], 0.1), ([self.MSG], 0.2))
+        with a, b:
+            msgs, secs = core.evaluate("both", self.PLAN, "eu")
+        self.assertEqual(msgs, [self.MSG])
+        self.assertAlmostEqual(secs, 0.3)
+
+    def test_both_clean_is_a_pass(self):
+        a, b = self._patch(([], 0.1), ([], 0.1))
+        with a, b:
+            msgs, _ = core.evaluate("both", self.PLAN, "eu")
+        self.assertEqual(msgs, [])
+
+    def test_finding_only_in_conftest_is_a_disagreement(self):
+        a, b = self._patch(([], 0.1), ([self.MSG], 0.1))
+        with a, b:
+            with self.assertRaises(core.EngineDisagreement) as ctx:
+                core.evaluate("both", self.PLAN, "eu")
+        self.assertIn("only Conftest reported", str(ctx.exception))
+
+    def test_finding_only_in_opa_is_a_disagreement(self):
+        a, b = self._patch(([self.MSG], 0.1), ([], 0.1))
+        with a, b:
+            with self.assertRaises(core.EngineDisagreement) as ctx:
+                core.evaluate("both", self.PLAN, "eu")
+        self.assertIn("only OPA reported", str(ctx.exception))
+
+    def test_different_messages_are_a_disagreement(self):
+        other = self.MSG.replace("us-east-1", "us-west-2")
+        a, b = self._patch(([self.MSG], 0.1), ([other], 0.1))
+        with a, b:
+            with self.assertRaises(core.EngineDisagreement):
+                core.evaluate("both", self.PLAN, "eu")
+
+    def test_failure_of_one_engine_is_never_a_pass(self):
+        def boom(*args, **kwargs):
+            raise core.ScofError("conftest produced no output")
+        a, b = self._patch(([], 0.1), boom)
+        with a, b:
+            with self.assertRaises(core.ScofError) as ctx:
+                core.evaluate("both", self.PLAN, "eu")
+        self.assertNotIsInstance(ctx.exception, core.EngineDisagreement)
+        self.assertIn("Both engines must run successfully", str(ctx.exception))
+
+    def test_disagreement_is_a_tooling_error(self):
+        self.assertTrue(issubclass(core.EngineDisagreement, core.ScofError))
+
+    def test_default_engine_is_both(self):
+        import inspect
+        self.assertEqual(inspect.signature(core.lint).parameters["engine"].default, "both")
+
+    def test_unknown_engine_is_rejected(self):
+        with self.assertRaises(core.ScofError):
+            core.evaluate("rego", self.PLAN, "eu")
+
+    def test_cli_defaults_and_exit_codes(self):
+        import scof_lint
+        with tempfile.TemporaryDirectory() as td:
+            plan = Path(td) / "plan.json"
+            plan.write_text("{}", encoding="utf-8")
+            args = ["--plan", str(plan), "--context", "eu"]
+            cases = [(([self.MSG], 0.1), ([self.MSG], 0.1), 1), (([], 0.1), ([], 0.1), 0), (([], 0.1), ([self.MSG], 0.1), 2)]
+            for opa_r, cft_r, expected in cases:
+                a, b = self._patch(opa_r, cft_r)
+                with a, b:
+                    self.assertEqual(scof_lint.main(args), expected)

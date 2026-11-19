@@ -3,7 +3,9 @@
 An AWS Terraform policy-as-code framework. One shared Rego/OPA policy library checks Terraform plan JSON against technical controls derived from India's DPDP Act and Rules, RBI directions and the GDPR. The same rules run in two places:
 
 - a **developer-side CLI linter**, with diagnostics in VS Code through built-in tasks, and
-- a **GitHub Actions pull-request gate** that evaluates plan JSON with OPA/Conftest and, with branch protection, keeps non-compliant changes from being merged.
+- a **GitHub Actions pull-request gate** that evaluates plan JSON with OPA and Conftest and, with branch protection, keeps non-compliant changes from being merged.
+
+Every check runs on **both engines, OPA and Conftest, and passes only if their findings are identical**. If the engines disagree, or either one fails, the result is a tool error (exit code 2) and never a pass. This applies to the command line tool, the VS Code task and the pull request gate.
 
 A small **router** selects which controls apply, and which region allow-list is used, from a deployment's jurisdiction and sector.
 
@@ -15,7 +17,7 @@ A small **router** selects which controls apply, and which region allow-list is 
 
 ```text
 Terraform code ---> scof_lint (CLI / VS Code task) --+
-                                                     +--> shared Rego library --> OPA or Conftest --> violations
+                                                     +--> shared Rego library --> OPA and Conftest (must agree) --> violations
 Pull request ---> terraform plan ---> plan JSON -----+
                   (GitHub Actions gate)
 ```
@@ -64,7 +66,7 @@ python cli/compliance-linter/scof_lint.py --dir tests/non_compliant/rds_unencryp
 
 Violations print as `file:line:column: error: [CONTROL] message`, followed by a summary line with stage timings. Exit code: 0 passed, 1 policy violations, 2 tooling error.
 
-Useful options: `--engine opa|conftest` (default `opa`), `--format text|json|github`, `--plan <plan.json>` to evaluate an existing plan, `--save-plan <path>`, and `--watch` to re-lint whenever a `.tf` file changes.
+Useful options: `--engine both|opa|conftest` (default `both`: both engines must agree; `opa` or `conftest` run a single engine without the cross-check), `--format text|json|github`, `--plan <plan.json>` to evaluate an existing plan, `--save-plan <path>`, and `--watch` to re-lint whenever a `.tf` file changes.
 
 ### Resolve a deployment to a context
 
@@ -89,7 +91,7 @@ opa test policies
 python -m unittest discover -s cli/compliance-linter -p "test_*.py"
 python -m unittest discover -s router/policy-routing -p "test_*.py"
 python scripts/run_manifest.py --engine both --refresh
-python scripts/ci_gate.py --engine conftest
+python scripts/ci_gate.py --engine both
 ```
 
 `run_manifest.py` runs every fixture in `tests/manifest.csv` through both engines and compares the result with the expected one, and with each other. `ci_gate.py` evaluates every deployable configuration under `terraform/` as the CI does.
@@ -101,7 +103,7 @@ python scripts/ci_gate.py --engine conftest
 | Job (required check) | What it does |
 |---|---|
 | `Policy and tool tests` | Rego format, check and unit tests; Python tests |
-| `Compliance gate` | Plans every configuration in `router/policy-routing/targets.json`, evaluates it with Conftest in its routed context, and fails on any violation |
+| `Compliance gate` | Plans every configuration in `router/policy-routing/targets.json`, evaluates it with OPA and Conftest in its routed context, and fails on any violation or on any disagreement between the engines |
 | `Fixture self-test` | Runs all development fixtures through both engines and compares them with the manifest |
 
 With branch protection requiring these checks, a change that violates a control cannot be merged. The gate blocks the merge, not `terraform apply`: this project never applies infrastructure, and OPA itself does not block `apply`.
