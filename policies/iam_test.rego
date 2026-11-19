@@ -22,6 +22,14 @@ test_wildcard_action_on_specific_resource_not_flagged if {
 	count(iam.deny) == 0 with input as policy_plan(pol(["*"], ["arn:aws:s3:::scof-finance-data/*"]))
 }
 
+test_unknown_policy_denied if {
+	count(iam.deny) == 1 with input as {"resource_changes": [{"address": "aws_iam_policy.p", "mode": "managed", "type": "aws_iam_policy", "change": {"after": {"name": "p"}, "after_unknown": {"policy": true}}}]}
+}
+
+test_known_policy_not_reported_as_unknown if {
+	count(iam.deny) == 0 with input as {"resource_changes": [{"address": "aws_iam_policy.p", "mode": "managed", "type": "aws_iam_policy", "change": {"after": {"policy": pol(["s3:GetObject"], ["arn:aws:s3:::b/*"])}, "after_unknown": {"policy": false}}}]}
+}
+
 test_admin_access_attachment_denied if {
 	count(iam.deny) == 1 with input as {"resource_changes": [{"address": "aws_iam_role_policy_attachment.a", "mode": "managed", "type": "aws_iam_role_policy_attachment", "change": {"after": {"policy_arn": "arn:aws:iam::aws:policy/AdministratorAccess"}}}]}
 }

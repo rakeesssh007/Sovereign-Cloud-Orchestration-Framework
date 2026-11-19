@@ -1,0 +1,758 @@
+{
+  "_meta": {
+    "version": "1.4.0",
+    "source": "docs/regulation-mapping/regulation_control_matrix.md",
+    "source_last_updated": "2026-11-19",
+    "description": "Machine-readable SCOF control and routing-context catalogue derived from the final regulation-to-control matrix.",
+    "status_labels": [
+      "VERIFIED-PRIMARY",
+      "VERIFIED-SECONDARY",
+      "INTERPRETATION",
+      "NOT VERIFIED"
+    ],
+    "note": "A source supporting a security objective does not mean the exact Terraform check is legally mandated. Applicability must be established for the entity, workload, data and activity. The catalogue preserves the existing eight-control baseline; HC-CAND-01 through HC-CAND-05 are research assessment records, not controls.",
+    "status_as_of": "2026-11-15",
+    "content_hash_algorithm": "sha256",
+    "content_hash_scope": "Canonical UTF-8 JSON with sorted keys and compact separators, excluding _meta.content_hash itself",
+    "change_log": [
+      {
+        "version": "1.1.0",
+        "changes": [
+          "Added per-source legal status and separate SCOF mapping status metadata.",
+          "Added a deterministic catalogue content hash."
+        ]
+      },
+      {
+        "version": "1.2.0",
+        "changes": [
+          "Added the exact Markdown source section for each of the eight controls as matrix_text."
+        ]
+      },
+      {
+        "version": "1.3.0",
+        "changes": [
+          "Added the sector-neutral india context as a routed context.",
+          "Refreshed matrix_text for REGION-RESTRICTION and LOG-RETENTION."
+        ]
+      },
+      {
+        "version": "1.4.0",
+        "date": "2026-11-19",
+        "changes": [
+          "Refreshed matrix_text for all eight controls from the re-verified regulation matrix.",
+          "BACKUP-RESILIENCE: the RBI basis cites the 2026 entity-specific Directions; the former RBI IT Governance Directions 2023 are no longer cited as a basis.",
+          "DATA-ENCRYPTION: technical_check and terraform_attributes list every attribute the policy checks.",
+          "LOG-RETENTION: technical_check states that a retention value unknown at plan time is denied.",
+          "IAM-NO-WILDCARD-ADMIN: a policy document that is unknown at plan time is denied; technical_check and matrix_text updated."
+        ]
+      }
+    ],
+    "content_hash": "sha256:3a7d0a30f749f5e0c99732acce441c201f2b1a5c3853397933d1d52407a88b46"
+  },
+  "controls": {
+    "REGION-RESTRICTION": {
+      "description": "The AWS provider region must be in the allow-list supplied by the routing context.",
+      "terraform_attributes": [
+        "configuration.provider_config.aws.expressions.region.constant_value"
+      ],
+      "rego_module": "policies/region.rego",
+      "contexts": {
+        "india-finance": {
+          "basis_label": "INTERPRETATION",
+          "sources": [
+            "S1",
+            "S39",
+            "S40",
+            "S41"
+          ],
+          "legal_requirement": "S1 requires in-scope RBI-authorised or approved payment-system providers to store payment-system data only in India, subject to the foreign-leg qualification. S41 expressly cross-refers Payment Aggregators to applicable S1 requirements. S39 and S40 inform the payment-system/PPI applicability assessment; they do not make S1 universal.",
+          "scof_interpretation": "For the india-finance context, SCOF conservatively requires AWS resources to use India regions. This is a deployment proxy for the narrow S1 payment-system-data case, not a rule for all financial data or every finance entity.",
+          "technical_check": "Provider region must be one of: ap-south-1, ap-south-2.",
+          "applicability": "Only where the workload/entity falls within S1 payment-system-provider and payment-system-data scope; assess authorisation, actual activity and data. See NA-24 and NA-26.",
+          "limitations": "Does not model S1's foreign-leg exception, permitted processing/return timelines, backups, replication or global services. S39's non-repeal check and S40's conditional PPI analysis do not establish universal applicability. DPDP does not create blanket India-only storage.",
+          "source_mappings": [
+            {
+              "source_id": "S1",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "Payment-system data localisation; only in-scope authorised/approved payment-system providers and relevant data.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S39",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "RBI payment-system source; source-specific entity/activity scope.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S40",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "RBI PPI source; source-specific applicability.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S41",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "RBI Payment Aggregator source; source-specific applicability and cross-reference.",
+              "status_as_of": "2026-11-15"
+            }
+          ]
+        },
+        "eu": {
+          "basis_label": "INTERPRETATION",
+          "sources": [
+            "S6",
+            "S17",
+            "S18"
+          ],
+          "legal_requirement": "GDPR Articles 44–46 govern transfers to third countries and provide conditional transfer mechanisms, including adequacy decisions and appropriate safeguards.",
+          "scof_interpretation": "For the eu context, SCOF conservatively requires deployment in selected EU AWS regions so that the framework avoids a third-country deployment in this technical profile.",
+          "technical_check": "Provider region must be one of: eu-central-1, eu-west-1, eu-west-3, eu-north-1, eu-south-1, eu-south-2.",
+          "applicability": "Where GDPR material and territorial scope is met under Articles 2–3; transfer rules apply to relevant third-country transfers.",
+          "limitations": "GDPR does not require EU-only storage. Adequacy decisions, SCCs and other safeguards are not evaluated by this Terraform check. The check does not assess transfer mechanisms, onward transfers or the legal basis for a particular transfer.",
+          "source_mappings": [
+            {
+              "source_id": "S6",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "GDPR third-country transfer provisions; applicable transfer mechanism must be assessed.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S17",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "GDPR scope/transfer supporting source; conditional applicability.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S18",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "GDPR safeguards/transfer supporting source; conditional applicability.",
+              "status_as_of": "2026-11-15"
+            }
+          ]
+        }
+      },
+      "matrix_text": "### REGION-RESTRICTION\n- Check: the AWS provider region must be in the allowed list supplied by the routing context. One Rego rule; the router passes the list.\n- Terraform attribute: configuration.provider_config.aws.expressions.region.constant_value (literal region).\n- Rego rule: policies/region.rego (implemented).\n- Allowed lists (parameters; store as data, do not hardcode in Rego):\n  - india-finance: ap-south-1, ap-south-2. Based on [AWS's documented region geographies.](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-availability-zones.html#zones-asia-pacific)\n  - eu: eu-central-1, eu-west-1, eu-west-3, eu-north-1, eu-south-1, eu-south-2. Excludes eu-west-2 (United Kingdom) and eu-central-2 (Switzerland), based on [AWS's documented region geographies.](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-availability-zones.html#zones-europe)\n- Legal basis per context:\n  - india-finance: S1 (RBI). Legal content (as verified): payment system data to be stored in systems located only in India (scope: RBI-authorised payment system providers; payment data). SCOF interpretation: AWS resources of an India finance workload that holds payment data must be deployed in India regions. Caveats: covers payment data only, not all financial data. RBI also allows the foreign leg of a cross-border transaction to be stored abroad; this rule does not model that exception, so it is stricter than the circular. Backups, replication and global services are not modelled. DPDP is not the source of this control (S4: no blanket India-only storage requirement).\n  - eu: S6 (GDPR Art 44), S5 context. Legal content (as verified): transfers to third countries are allowed only if Chapter V conditions are met. SCOF interpretation (conservative): for an EU deployment context, deploy only in EU regions so that no third-country transfer arises. Caveats: GDPR does not require EU-only storage; adequacy decisions and safeguards (Arts 45-46) are not modelled.\n  - india without a sector (context `india`, sector-neutral, as `eu` is for the EU): no region restriction; no verified source provides one (S4). The base DPDP-derived controls and LOG-RETENTION apply as readiness baselines.\n- Fixtures: india-finance PASS s3_kms_cmk_india, rds_encrypted_cmk_india, ec2_encrypted_cmk_india, kms_rotation_enabled_india, iam_least_privilege_india; FAIL s3_wrong_region, rds_wrong_region. eu PASS s3_kms_cmk_eu. \n- Cross-context check: India fixtures evaluated under the eu context fail REGION-RESTRICTION as expected."
+    },
+    "DATA-ENCRYPTION": {
+      "description": "Selected persistent storage resources must be encrypted using AWS KMS.",
+      "terraform_attributes": [
+        "aws_s3_bucket_server_side_encryption_configuration.rule.apply_server_side_encryption_by_default.sse_algorithm",
+        "aws_s3_bucket (an encryption configuration must exist for each bucket)",
+        "aws_db_instance.storage_encrypted",
+        "aws_ebs_volume.encrypted",
+        "aws_instance.root_block_device[].encrypted",
+        "aws_instance.ebs_block_device[].encrypted"
+      ],
+      "rego_module": "policies/encryption.rego",
+      "basis_label": "INTERPRETATION",
+      "sources": [
+        "S2",
+        "S5",
+        "S31",
+        "S32",
+        "S33"
+      ],
+      "legal_requirement": "GDPR Article 32(1)(a) expressly identifies encryption as an appropriate security measure. DPDP Rules 2025 Rule 6(1)(a) identifies encryption among minimum safeguards but is scheduled to commence on 13 May 2027. RBI 2026 instruments contain entity- and clause-specific security/cryptographic requirements; they do not generally prescribe AWS KMS for the resources checked.",
+      "scof_interpretation": "SCOF requires AWS KMS encryption for the selected persistent-storage resources. This is stricter than a generic legal requirement to encrypt; other encryption methods may satisfy a legal obligation even where they fail this SCOF control.",
+      "technical_check": "Every S3 server-side encryption configuration uses aws:kms and every bucket has one; RDS storage_encrypted is true; standalone EBS volumes set encrypted = true; every EC2 block device (root and extra EBS) sets encrypted = true; an EC2 instance with no explicit root_block_device is denied.",
+      "applicability": "Base control in all four catalogue contexts. Legal source applicability remains conditional on GDPR scope, the relevant RBI entity/activity/clause, and DPDP commencement and scope.",
+      "limitations": "The cited sources do not generally mandate AWS KMS or these exact Terraform attributes. DPDP Rule 6 is not yet in force as of the matrix date. The check does not establish encryption of every data flow, service, backup or data store, nor key governance.",
+      "source_mappings": [
+        {
+          "source_id": "S2",
+          "legal_status": "PROSPECTIVE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+          "effective_date": "2027-05-13",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S5",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "GDPR security obligation; territorial and material scope must be established.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S31",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S32",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S33",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        }
+      ],
+      "matrix_text": "### DATA-ENCRYPTION\n- Basis (all contexts): S2 Rule 6 and S5 Art 32.\n- Legal content (as verified): reasonable or appropriate security measures, with encryption named as one example. Neither text names KMS or any AWS service. DPDP Rule 6 commences 18 months after notification (about 13 May 2027, per Rule 1), so that basis is not yet in force; GDPR Art 32 is in force.\n- SCOF interpretation: persistent storage must be encrypted with AWS KMS. SSE-S3 (AES256) is still encryption, so the fixture s3_no_kms_encryption violates our stricter KMS control, not necessarily the law.\n- Check: every S3 server-side encryption configuration uses sse_algorithm aws:kms, and every aws_s3_bucket has such a configuration; every aws_db_instance sets storage_encrypted to true; every standalone aws_ebs_volume sets encrypted to true; every EC2 block device (root and extra EBS) sets encrypted to true; an EC2 instance with no explicit root_block_device is denied.\n- Terraform attributes: aws_s3_bucket_server_side_encryption_configuration (rule.apply_server_side_encryption_by_default.sse_algorithm); aws_db_instance.storage_encrypted; aws_ebs_volume.encrypted; aws_instance.root_block_device[].encrypted and aws_instance.ebs_block_device[].encrypted; the presence of an encryption configuration for each aws_s3_bucket.\n- Rego rule: policies/encryption.rego (implemented).\n- Fixtures: FAIL s3_no_kms_encryption, rds_unencrypted, ec2_unencrypted_ebs. PASS the compliant set."
+    },
+    "KEY-OWNERSHIP": {
+      "description": "Referenced encryption keys must be customer-managed rather than AWS-managed aliases.",
+      "terraform_attributes": [
+        "kms_master_key_id",
+        "kms_key_id"
+      ],
+      "rego_module": "policies/key_ownership.rego",
+      "basis_label": "INTERPRETATION",
+      "sources": [
+        "S2",
+        "S5",
+        "S31",
+        "S32"
+      ],
+      "legal_requirement": "The matrix identifies no cited S31–S44 provision requiring customer-managed AWS KMS keys. General risk-based security duties may support key governance, but the cited provisions do not prescribe this AWS key-management design.",
+      "scof_interpretation": "SCOF treats a key as customer-managed when the plan references an aws_kms_key/aws_kms_alias resource or a customer-managed key ARN, and rejects AWS-managed aliases such as alias/aws/*.",
+      "technical_check": "For supported S3, RDS and EBS key attributes, the referenced key must be customer-managed and must not be an AWS-managed alias.",
+      "applicability": "Base control in all four catalogue contexts.",
+      "limitations": "This is an engineering/defence-in-depth interpretation, not a specific legal requirement. Key ARNs may be unknown at plan time; unusual aliases and cross-account keys may be misclassified. Terraform references do not prove key custody, HSM use, separation of duties or operational key governance.",
+      "source_mappings": [
+        {
+          "source_id": "S2",
+          "legal_status": "PROSPECTIVE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+          "effective_date": "2027-05-13",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S5",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "GDPR security obligation; territorial and material scope must be established.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S31",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S32",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        }
+      ],
+      "matrix_text": "### KEY-OWNERSHIP\n- Basis: none verified. INTERPRETATION.\n- Rationale: control over the key lifecycle supports \"appropriate technical measures\"; no verified text requires customer-managed keys.\n- Check: referenced KMS keys must be customer-managed (an aws_kms_key resource or a CMK ARN), not an AWS-managed alias (alias/aws/*).\n- Terraform attributes: kms_master_key_id (S3), kms_key_id (RDS, EBS). References to keys created in the same plan are unknown at plan time, so read configuration.root_module.resources[].expressions.<attr>.references.\n- Rego rule: policies/key_ownership.rego (implemented).\n- Fixtures: FAIL s3_aws_managed_key."
+    },
+    "KEY-ROTATION": {
+      "description": "Symmetric AWS KMS keys must have automatic key rotation enabled.",
+      "terraform_attributes": [
+        "aws_kms_key.enable_key_rotation"
+      ],
+      "rego_module": "policies/key_rotation.rego",
+      "basis_label": "INTERPRETATION",
+      "sources": [
+        "S31",
+        "S32",
+        "S33"
+      ],
+      "legal_requirement": "The matrix identifies no cited provision prescribing an automatic KMS-key rotation interval. S33 paragraph 15(e) addresses rotation policy for privileged accounts; that is distinct from cryptographic KMS-key rotation. S31, S32 and S33 contain related credential, privileged-access or cryptographic requirements but do not establish this exact KMS setting.",
+      "scof_interpretation": "SCOF requires automatic rotation for supported symmetric KMS keys as an engineering/security-baseline choice.",
+      "technical_check": "aws_kms_key.enable_key_rotation must be true for applicable symmetric keys.",
+      "applicability": "Base control in all four catalogue contexts.",
+      "limitations": "The automatic KMS rotation setting and interval are not prescribed by the cited sources. Do not conflate privileged-account/password rotation with cryptographic key rotation. Key type or rotation state may not always be determinable from plan data.",
+      "source_mappings": [
+        {
+          "source_id": "S31",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S32",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S33",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        }
+      ],
+      "matrix_text": "### KEY-ROTATION\n- Basis: none verified. INTERPRETATION (security best practice).\n- Check: aws_kms_key.enable_key_rotation is true.\n- Rego rule: policies/key_rotation.rego (implemented).\n- Fixtures: FAIL kms_rotation_disabled. All compliant fixtures with keys set rotation to true."
+    },
+    "IAM-NO-WILDCARD-ADMIN": {
+      "description": "IAM policy statements must not grant wildcard administrative actions across all resources.",
+      "terraform_attributes": [
+        "aws_iam_policy.policy"
+      ],
+      "rego_module": "policies/iam.rego",
+      "basis_label": "INTERPRETATION",
+      "sources": [
+        "S2",
+        "S5",
+        "S31",
+        "S32",
+        "S33"
+      ],
+      "legal_requirement": "The cited GDPR, DPDP and applicable RBI provisions support appropriate access control, least privilege and privileged-access safeguards within their respective scopes. DPDP Rule 6(1)(b) is scheduled for 13 May 2027. The cited clauses do not expressly prohibit every IAM statement using wildcard actions and resources.",
+      "scof_interpretation": "SCOF treats an Allow statement with Action \"*\" and Resource \"*\" as a narrow technical indicator of excessive administrative privilege.",
+      "technical_check": "Reject an IAM policy statement that has Effect=Allow, Action=\"*\" and Resource=\"*\"; a policy document that is unknown at plan time is denied.",
+      "applicability": "Base control in all four catalogue contexts. RBI obligations remain limited to the entity class and applicable chapter/paragraph; GDPR and DPDP require their respective scope tests.",
+      "limitations": "This is a narrow wildcard-policy check, not a complete least-privilege assessment. It does not establish business need, access reviews, screening, MFA, permission-boundary effectiveness, SCPs, resource policies, separation of duties, privileged-session monitoring or runtime privilege escalation.",
+      "source_mappings": [
+        {
+          "source_id": "S2",
+          "legal_status": "PROSPECTIVE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+          "effective_date": "2027-05-13",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S5",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "GDPR security obligation; territorial and material scope must be established.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S31",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S32",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S33",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        }
+      ],
+      "matrix_text": "### IAM-NO-WILDCARD-ADMIN\n- Basis: S2 Rule 6 (access control is among the minimum safeguards), VERIFIED-PRIMARY. The wildcard-admin rule is our INTERPRETATION of \"access control\"; Rule 6 does not mention IAM or wildcards. Rule 6 commences about 13 May 2027 (Rule 1), so the DPDP basis is not yet in force.\n- Check: no IAM policy statement may Allow Action \"*\" on Resource \"*\". A policy document that is unknown at plan time (for example one that refers to a resource created in the same plan) is denied, because it cannot be verified.\n- Terraform attribute: aws_iam_policy.policy (JSON string, parse with json.unmarshal in Rego).\n- Rego rule: policies/iam.rego (implemented).\n- Fixtures: FAIL iam_wildcard_admin. PASS iam_least_privilege_india."
+    },
+    "LOG-RETENTION": {
+      "description": "Selected CloudWatch log groups must retain logs for at least 365 days, or be configured never to expire.",
+      "terraform_attributes": [
+        "aws_cloudwatch_log_group.retention_in_days"
+      ],
+      "rego_module": "policies/log_retention.rego",
+      "basis_label": "INTERPRETATION",
+      "contexts": {
+        "india-finance": {
+          "basis_label": "INTERPRETATION",
+          "sources": [
+            "S2",
+            "S21",
+            "S22",
+            "S31",
+            "S32",
+            "S33",
+            "S42",
+            "S43"
+          ],
+          "legal_requirement": "CERT-In Direction paragraph (iv) requires covered entities to securely maintain rolling 180-day logs of all ICT systems within Indian jurisdiction. S33 paragraph 27(e) requires at least five years for specified audit-log records of covered non-bank PSOs. DPDP Rules 2025 Rule 6(1)(c)/(e) and Rule 8(3) contain separate future-effective logging/retention duties scheduled for 13 May 2027. RBI 2026 instruments contain entity- and chapter-specific audit-trail requirements, not one universal retention period.",
+          "scof_interpretation": "The existing 365-day CloudWatch log-group check is a conservative SCOF baseline. It is not equivalent to CERT-In, RBI PSO or DPDP compliance.",
+          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires); a value unknown at plan time is denied (fail closed).",
+          "applicability": "Enabled in the India jurisdiction context as a project baseline. Actual legal applicability must be checked for the entity, service-provider class, activity, data and instrument; see NA-24 and NA-26.",
+          "limitations": "Does not prove all ICT systems are logged, India-jurisdiction storage, event coverage, log integrity, access/review, six-hour incident reporting, five-year retention of specified PSO audit logs, one-year DPDP retention when effective, or personal-data retention. The 180-day, five-year and one-year requirements are distinct. It also does not resolve the S43 FAQ interpretation on offshore replicas.",
+          "source_mappings": [
+            {
+              "source_id": "S2",
+              "legal_status": "PROSPECTIVE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+              "effective_date": "2027-05-13",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S21",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "Commencement notification is in force; it stages commencement and does not make prospective Rule 6 currently binding.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S22",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "Corrigendum is in force; it does not accelerate Rule 6 commencement.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S31",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S32",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S33",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S42",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "CERT-In direction; only entities/systems within its scope.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S43",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "CERT-In FAQ/clarification; interpretive guidance on scoped directions.",
+              "status_as_of": "2026-11-15"
+            }
+          ]
+        },
+        "india-healthcare": {
+          "basis_label": "INTERPRETATION",
+          "sources": [
+            "S2",
+            "S21",
+            "S22",
+            "S42",
+            "S43"
+          ],
+          "legal_requirement": "CERT-In Direction paragraph (iv) requires covered entities to securely maintain rolling 180-day logs of all ICT systems within Indian jurisdiction. DPDP Rules 2025 Rule 6(1)(c)/(e) and Rule 8(3) contain separate future-effective logging/retention duties scheduled for 13 May 2027. These duties depend on their exact entity, service-provider, data and activity scope.",
+          "scof_interpretation": "The 365-day CloudWatch check is a conservative SCOF project baseline for the india-healthcare context. It is not a finding that every healthcare workload is subject to every Indian logging/retention obligation.",
+          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires); a value unknown at plan time is denied (fail closed).",
+          "applicability": "India healthcare context baseline. Establish entity, participant, establishment, authority, data, activity and territorial applicability before treating any source as legally applicable; see NA-01, NA-24 and NA-26.",
+          "limitations": "Does not prove all ICT systems are logged, India-jurisdiction storage, complete audit-trail coverage, log integrity, access/review, incident reporting, five-year PSO-specific retention or future DPDP compliance. Healthcare sources S19–S30 do not establish universal India-only hosting or universal 365-day retention for all healthcare workloads.",
+          "source_mappings": [
+            {
+              "source_id": "S2",
+              "legal_status": "PROSPECTIVE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+              "effective_date": "2027-05-13",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S21",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "Commencement notification is in force; it stages commencement and does not make prospective Rule 6 currently binding.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S22",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "Corrigendum is in force; it does not accelerate Rule 6 commencement.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S42",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "CERT-In direction; only entities/systems within its scope.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S43",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "CERT-In FAQ/clarification; interpretive guidance on scoped directions.",
+              "status_as_of": "2026-11-15"
+            }
+          ]
+        },
+        "india": {
+          "basis_label": "INTERPRETATION",
+          "sources": [
+            "S2",
+            "S21",
+            "S22",
+            "S42",
+            "S43"
+          ],
+          "legal_requirement": "Same source distinctions as the India jurisdiction context: CERT-In rolling 180-day ICT logs for covered entities and separate DPDP Rules 2025 future-effective duties.",
+          "scof_interpretation": "Sector-neutral India context; the same 365-day CloudWatch baseline applies as a readiness baseline (DPDP Rule 6(1)(e) is not yet in force, about 13 May 2027).",
+          "technical_check": "aws_cloudwatch_log_group.retention_in_days must be >= 365 or 0 (never expires); a value unknown at plan time is denied (fail closed).",
+          "applicability": "Sector-neutral India context routed by the production router; LOG-RETENTION is a conservative SCOF baseline, not a legal applicability determination.",
+          "limitations": "Same technical limitations as the India jurisdiction context. Do not treat this test context as a production legal-applicability determination.",
+          "source_mappings": [
+            {
+              "source_id": "S2",
+              "legal_status": "PROSPECTIVE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+              "effective_date": "2027-05-13",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S21",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "Commencement notification is in force; it stages commencement and does not make prospective Rule 6 currently binding.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S22",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "Corrigendum is in force; it does not accelerate Rule 6 commencement.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S42",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "CERT-In direction; only entities/systems within its scope.",
+              "status_as_of": "2026-11-15"
+            },
+            {
+              "source_id": "S43",
+              "legal_status": "IN FORCE",
+              "mapping_status": "SCOF INTERPRETATION",
+              "applicability_note": "CERT-In FAQ/clarification; interpretive guidance on scoped directions.",
+              "status_as_of": "2026-11-15"
+            }
+          ]
+        }
+      },
+      "matrix_text": "### LOG-RETENTION\n- Status: INTERPRETATION — The security objective is supported, but the one-year requirement is applied to all CloudWatch log groups for implementation purposes.\n- Basis: S2 Rule 6(1)(c) and 6(1)(e), VERIFIED-PRIMARY. DPDP only. No verified EU source requires one-year log retention, so the control is not enabled in the eu context.\n- Legal content (as verified, paraphrased): Rule 6(1)(c) requires visibility on access to personal data through appropriate logs, monitoring and review. Rule 6(1)(e) requires such logs and personal data to be retained for one year, unless another law in force requires otherwise. Rule 8(3) separately describes a minimum of one year for its own purposes. Rule 6 commences about 13 May 2027, so this basis is not yet in force.\n- SCOF interpretation : one year is read as a floor, not an exact period. The check is applied to every CloudWatch log group in the plan, because the plan does not show which log groups hold access logs for personal data.\n- Check: aws_cloudwatch_log_group.retention_in_days must be at least 365. An absent value or 0 (never expires) passes. A value that is unknown at plan time is denied (fail closed), because it cannot be verified.\n- Terraform attribute: aws_cloudwatch_log_group.retention_in_days.\n- Rego rule: policies/log_retention.rego (implemented).\n- Applies to contexts: india, india-finance, and india-healthcare. Not enabled in eu.\n- Limits: broader than the rule (all log groups, not only access logs for personal data). Not modelled: the other-law exception, S3 access logs, CloudTrail, logs kept outside CloudWatch, retention of the personal data itself, and any conflict between never-expire logs and erasure duties.\n- Fixtures: FAIL log_group_short_retention_india (30 days, india-finance). PASS log_group_retention_365_india (365 days, india-finance) and log_group_short_retention_eu (30 days, eu: the control is not enabled there). The plan of log_group_short_retention_india evaluated under eu reports REGION-RESTRICTION only, with no LOG-RETENTION finding."
+    },
+    "ACCESS-EXPOSURE": {
+      "description": "S3 public-access-block settings must be fully enabled, and RDS instances must not be publicly accessible.",
+      "terraform_attributes": [
+        "aws_s3_bucket_public_access_block.block_public_acls",
+        "aws_s3_bucket_public_access_block.block_public_policy",
+        "aws_s3_bucket_public_access_block.ignore_public_acls",
+        "aws_s3_bucket_public_access_block.restrict_public_buckets",
+        "aws_db_instance.publicly_accessible"
+      ],
+      "rego_module": "policies/access_exposure.rego",
+      "basis_label": "INTERPRETATION",
+      "sources": [
+        "S2",
+        "S5",
+        "S7",
+        "S31",
+        "S32",
+        "S33"
+      ],
+      "legal_requirement": "GDPR Articles 5(1)(f) and 32 and applicable RBI access-control provisions support confidentiality and appropriate access controls. DPDP Rule 6(1)(b) is scheduled for 13 May 2027. The cited provisions do not specifically require blocking public S3 access or setting RDS publicly_accessible=false.",
+      "scof_interpretation": "SCOF treats explicit public exposure of S3 or RDS data stores as a failure to control access.",
+      "technical_check": "All four aws_s3_bucket_public_access_block flags must be true; aws_db_instance.publicly_accessible must be false.",
+      "applicability": "Base control in all four catalogue contexts.",
+      "limitations": "The check detects only the explicit Terraform attributes modelled. It does not fully assess bucket policies, ACLs, security groups, account-level settings, VPC endpoints, network reachability, identity governance, monitoring or operational review. GDPR Article 5(1)(f) is supporting basis only; this exact check remains an interpretation.",
+      "source_mappings": [
+        {
+          "source_id": "S2",
+          "legal_status": "PROSPECTIVE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+          "effective_date": "2027-05-13",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S5",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "GDPR security obligation; territorial and material scope must be established.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S7",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "Supporting GDPR integrity/confidentiality principle; does not itself prescribe public S3/RDS checks.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S31",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S32",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S33",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        }
+      ],
+      "matrix_text": "### ACCESS-EXPOSURE\n- Status: INTERPRETATION — The security objective is supported, but “no public S3/RDS” is an implementation interpretation.\n- Basis: S2 Rule 6(1)(b), VERIFIED-PRIMARY, not yet in force. GDPR Art 32(1) (S5), in force. GDPR Art 5(1)(f) (S7) is VERIFIED-PRIMARY and is used only as supporting basis; it does not specifically require blocking public S3 or RDS exposure, so the check remains a SCOF technical interpretation.\n- Legal content (as verified, paraphrased): Rule 6(1)(b) requires appropriate measures to control access to the computer resources used by the Data Fiduciary or its Data Processor. Art 32(1) requires technical and organisational measures appropriate to the risk, including confidentiality (see S5). Neither text mentions public access, S3 or RDS.\n- SCOF interpretation : explicit public exposure of a data store is a failure to control access.\n- Check: no aws_s3_bucket_public_access_block has any of block_public_acls, block_public_policy, ignore_public_acls or restrict_public_buckets set to false, and no aws_db_instance has publicly_accessible set to true.\n- Terraform attributes: aws_s3_bucket_public_access_block (the four flags); aws_db_instance.publicly_accessible.\n- Rego rule: policies/access_exposure.rego (implemented).\n- Applies to contexts: all (base control set).\n- Limits: only explicit exposure is detected. A bucket with no public-access-block resource, public bucket policies or ACLs, security groups and account-level block settings are not modelled, so false negatives are accepted.\n- Fixtures: FAIL s3_public_access_block_open_india (block_public_policy false) and rds_publicly_accessible_india (publicly_accessible true), both under india-finance. PASS s3_public_access_block_all_india. The existing compliant RDS fixtures set no publicly_accessible and plan it as false, so they pass without changes."
+    },
+    "BACKUP-RESILIENCE": {
+      "description": "RDS instances must have automated backups explicitly enabled with backup_retention_period of at least one day.",
+      "terraform_attributes": [
+        "aws_db_instance.backup_retention_period"
+      ],
+      "rego_module": "policies/backup_resilience.rego",
+      "basis_label": "INTERPRETATION",
+      "sources": [
+        "S2",
+        "S5",
+        "S31",
+        "S32",
+        "S33"
+      ],
+      "legal_requirement": "GDPR Article 32(1)(c)–(d) addresses restoration and resilience where GDPR applies. DPDP Rule 6(1)(d) identifies backups as a reasonable measure for continued processing but is scheduled for 13 May 2027. RBI 2026 instruments contain entity-/chapter-specific backup, restore, BCP/DR, integrity, access and testing requirements. None of these sources prescribes RDS automated backups or a one-day retention period.",
+      "scof_interpretation": "SCOF uses backup_retention_period >= 1 as a technical baseline to ensure RDS automated backups are enabled. The one-day threshold is not a numeric regulatory requirement.",
+      "technical_check": "aws_db_instance.backup_retention_period must be explicitly set to >= 1; omitted/unknown and values below 1 fail.",
+      "applicability": "Base control in all four catalogue contexts. RBI obligations apply only to the relevant regulated entity, chapter and operative provision; GDPR applies where in scope; DPDP Rule 6 is future-effective.",
+      "limitations": "RDS aws_db_instance only. Does not prove periodic restore testing, backup usability, integrity, access protection, BCP/BIA, RTO/RPO, DR failover, half-yearly drills, geographic/seismic separation or vendor coordination. S3 versioning, EBS snapshots, Aurora clusters and cross-region copies are not modelled. RBI geographic/seismic DR separation is resilience, not general country localisation.",
+      "source_mappings": [
+        {
+          "source_id": "S2",
+          "legal_status": "PROSPECTIVE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "DPDP Rules 2025 Rule 6; prospective at the stated status date.",
+          "effective_date": "2027-05-13",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S5",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "GDPR security obligation; territorial and material scope must be established.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S31",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S32",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        },
+        {
+          "source_id": "S33",
+          "legal_status": "IN FORCE",
+          "mapping_status": "SCOF INTERPRETATION",
+          "applicability_note": "RBI direction; applicability limited to entities within its defined scope.",
+          "status_as_of": "2026-11-15"
+        }
+      ],
+      "matrix_text": "### BACKUP-RESILIENCE\n- Status: INTERPRETATION — The resilience objective is supported, but “RDS automated backups of at least 1 day” is a SCOF technical baseline.\n- Basis: for RBI regulated entities (india-finance context), the backup and restoration requirements of the 2026 entity-specific Directions (S31 paras 169–174; S32 para 8(9) and paras 129–138; S33 para 20(f); see S8 for the consolidation). S2 Rule 6(1)(d), VERIFIED-PRIMARY, not yet in force. GDPR Art 32(1)(c) (S5), in force.\n- Legal content (as verified, paraphrased): Rule 6(1)(d) requires reasonable measures for continued processing if the confidentiality, integrity or availability of personal data is compromised, naming data-backups as an example. Art 32(1)(c) concerns the ability to restore availability of and access to personal data in a timely manner after an incident (see S5). The 2026 RBI Directions (S31, S32, S33) require regulated entities to back up data, periodically test restoration, and protect the integrity of and access to backups, each with its own detail for its own entity class (see the Control basis summary). None of these texts requires automated backups, RDS, or a number of days.\n- SCOF interpretation : enabled RDS automated backups are a reasonable technical measure toward the backup obligations in the RBI Directions (S31–S33), Rule 6(1)(d) and Art 32(1)(c). The threshold of at least 1 day is SCOF's technical implementation baseline for ensuring that automated RDS backups are enabled, not a numeric requirement of any of those texts.\n- Check: aws_db_instance.backup_retention_period must be set explicitly to at least 1. A value below 1 is denied. An omitted value is denied too: the plan reports it as unknown until apply, and the AWS provider documents a default of 0, which disables automated backups ([provider documentation, read 2026-10-05](https://github.com/hashicorp/terraform-provider-aws/blob/main/website/docs/r/db_instance.html.markdown)).\n- Terraform attribute: aws_db_instance.backup_retention_period.\n- Rego rule: policies/backup_resilience.rego (implemented).\n- Applies to contexts: all (base control set).\n- Basis of the threshold : at least 1 day is the SCOF technical baseline for ensuring that automated RDS backups are enabled. It is not a numeric requirement of the RBI Directions, DPDP Rule 6(1)(d) or GDPR Art 32(1)(c): none of them names a number of days. An explicit value is required: a value below 1 is denied, and so is an omitted value (see Check).\n- Applicability of the RBI basis (S31–S38): each 2026 Direction applies only to its own regulated-entity class (see the S31–S38 rows), not to every organisation in India. The RBI basis therefore applies to the india-finance context, which assumes the deployment belongs to such an entity; SCOF does not check whether a given deployment is in scope. In the other contexts the control rests on S2 Rule 6(1)(d) and S5 Art 32(1)(c).\n- Limits: RDS aws_db_instance only. Enabled automated backups do not show that backups are periodically restored and verified, that their integrity is preserved, or that access to them is restricted (the RBI backup and restore provisions); none of that is modelled. S3 versioning, EBS snapshots, Aurora clusters and cross-region copies (which could also interact with REGION-RESTRICTION) are not modelled either.\n- Fixtures: FAIL rds_no_backup_india (backup_retention_period = 0) and rds_backup_not_set_india (attribute omitted, unknown at plan time), both under india-finance. PASS rds_encrypted_cmk_india, which now sets backup_retention_period = 7 explicitly. The other RDS fixtures and the terraform/rds reference configuration also set it explicitly, so that each keeps its single intended violation."
+    }
+  },
+  "contexts": {
+    "india-finance": {
+      "description": "India finance deployment context.",
+      "controls": [
+        "REGION-RESTRICTION",
+        "DATA-ENCRYPTION",
+        "KEY-OWNERSHIP",
+        "KEY-ROTATION",
+        "IAM-NO-WILDCARD-ADMIN",
+        "LOG-RETENTION",
+        "ACCESS-EXPOSURE",
+        "BACKUP-RESILIENCE"
+      ],
+      "region_restriction": true,
+      "region_allowlist": [
+        "ap-south-1",
+        "ap-south-2"
+      ],
+      "production": true
+    },
+    "eu": {
+      "description": "EU deployment context.",
+      "controls": [
+        "REGION-RESTRICTION",
+        "DATA-ENCRYPTION",
+        "KEY-OWNERSHIP",
+        "KEY-ROTATION",
+        "IAM-NO-WILDCARD-ADMIN",
+        "ACCESS-EXPOSURE",
+        "BACKUP-RESILIENCE"
+      ],
+      "region_restriction": true,
+      "region_allowlist": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2"
+      ],
+      "production": true
+    },
+    "india-healthcare": {
+      "description": "India healthcare deployment context.",
+      "controls": [
+        "DATA-ENCRYPTION",
+        "KEY-OWNERSHIP",
+        "KEY-ROTATION",
+        "IAM-NO-WILDCARD-ADMIN",
+        "LOG-RETENTION",
+        "ACCESS-EXPOSURE",
+        "BACKUP-RESILIENCE"
+      ],
+      "region_restriction": false,
+      "region_allowlist": [],
+      "production": true
+    },
+    "india": {
+      "description": "Sector-neutral India deployment context (India with no sector): base controls plus LOG-RETENTION, no region restriction. Routed by the production router.",
+      "controls": [
+        "DATA-ENCRYPTION",
+        "KEY-OWNERSHIP",
+        "KEY-ROTATION",
+        "IAM-NO-WILDCARD-ADMIN",
+        "LOG-RETENTION",
+        "ACCESS-EXPOSURE",
+        "BACKUP-RESILIENCE"
+      ],
+      "region_restriction": false,
+      "region_allowlist": [],
+      "production": true
+    }
+  }
+}

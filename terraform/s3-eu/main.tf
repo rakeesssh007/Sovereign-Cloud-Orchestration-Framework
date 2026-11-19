@@ -18,7 +18,7 @@ provider "aws" {
   skip_region_validation      = true
 }
 resource "aws_kms_key" "s3" {
-  description         = "CMK for S3 encryption, EU (fixture)"
+  description         = "CMK for S3 encryption, EU"
   enable_key_rotation = true
 }
 

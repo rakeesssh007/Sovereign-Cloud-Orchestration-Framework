@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """SCOF compliance linter (developer-side). Uses the shared Rego library via scof_core.
 
-Exit codes: 0 = pass, 1 = policy violations, 2 = tooling error.
+By default every check runs on BOTH engines (OPA and Conftest) and passes only if their findings are identical.
+A disagreement, or the failure of either engine, is a tooling error and is never a pass.
+Exit codes: 0 = pass, 1 = policy violations, 2 = tooling error (including an engine disagreement).
 """
 import argparse
 import json
@@ -79,7 +81,8 @@ def main(argv=None):
     ap.add_argument("--plan", help="Existing plan JSON (skips terraform)")
     ap.add_argument("--tf-dir", help="Terraform directory used only for source lines when --plan is given")
     ap.add_argument("--context", required=True, help="Deployment context, e.g. india-finance or eu")
-    ap.add_argument("--engine", choices=["opa", "conftest"], default="opa")
+    ap.add_argument("--engine", choices=["opa", "conftest", "both"], default="both",
+                    help="both (default): run OPA and Conftest and require identical findings; opa or conftest: single engine, not cross-checked")
     ap.add_argument("--format", choices=["text", "json", "github"], default="text")
     ap.add_argument("--save-plan", help="Write the generated plan JSON to this path")
     ap.add_argument("--watch", action="store_true", help="Re-lint whenever a .tf file changes")

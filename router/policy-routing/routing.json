@@ -1,6 +1,8 @@
 {
   "routes": [
     { "jurisdiction": "india", "sector": "finance", "context": "india-finance" },
-    { "jurisdiction": "eu", "sector": null, "context": "eu" }
+    { "jurisdiction": "eu", "sector": null, "context": "eu" },
+    { "jurisdiction": "india", "sector": "healthcare", "context": "india-healthcare" },
+    { "jurisdiction": "india", "sector": null, "context": "india" }
   ]
 }

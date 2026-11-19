@@ -39,5 +39,27 @@ class ContractGuard(unittest.TestCase):
         self.assertEqual([], offenders, "independent colon parsing found:\n" + "\n".join(offenders))
 
 
+    def test_shared_core_owns_finding_enrichment(self):
+        core_source = Path(core.__file__).read_text(encoding="utf-8")
+        self.assertRegex(core_source, r"(?m)^import scof_findings$")
+        self.assertIn("scof_findings.enrich_all(", core_source)
+
+    def test_existing_finding_fields_remain_before_enrichment(self):
+        finding = core.Violation(
+            "DATA-ENCRYPTION", "aws_s3_bucket.x", "not encrypted", "original raw",
+            enrichment={"enrichment_status": "OK", "basis_label": "INTERPRETATION"},
+        )
+        payload = core.LintResult("eu", "opa", [finding]).to_dict()
+        row = payload["violations"][0]
+        keys = list(row)
+        self.assertEqual(
+            keys[:7],
+            ["control", "address", "reason", "raw", "parsed", "file", "line"],
+        )
+        self.assertEqual(row["raw"], "original raw")
+        self.assertEqual(row["enrichment_status"], "OK")
+        self.assertEqual(row["basis_label"], "INTERPRETATION")
+
+
 if __name__ == "__main__":
     unittest.main()
