@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -23,10 +24,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICY_DIR = REPO_ROOT / "policies"
 ROUTER_DIR = REPO_ROOT / "router" / "policy-routing"
 ALLOWLISTS = ROUTER_DIR / "region_allowlists.json"
+KNOWN_CONTEXTS = ROUTER_DIR / "known_contexts.json"
 CONTROL_SETS = ROUTER_DIR / "control_sets.json"
 CONTEXT_DIR = ROUTER_DIR / "contexts"
-_cache_dir = os.environ.get("SCOF_TF_PLUGIN_CACHE")
-PLUGIN_CACHE = Path(_cache_dir).expanduser() if _cache_dir else None
+# Shared Terraform plugin cache: SCOF_TF_PLUGIN_CACHE if set, else a default folder in the user's home.
+_cache_dir = os.environ.get("SCOF_TF_PLUGIN_CACHE") or str(Path.home() / ".scof" / "tf-plugin-cache")
+PLUGIN_CACHE = Path(_cache_dir).expanduser()
 PROCESS_TIMEOUT_S = 600
 KNOWN_CONTROLS = set(scof_findings._KNOWN_CONTROL_IDS)
 
@@ -184,16 +187,63 @@ def _tail(p, n: int = 15) -> str:
     return "\n".join((err or out)[-n:])
 
 
-def _tf_env() -> dict:
+def _platform_dir() -> str:
+    system = {"windows": "windows", "linux": "linux", "darwin": "darwin"}.get(platform.system().lower())
+    arch = {"amd64": "amd64", "x86_64": "amd64", "arm64": "arm64", "aarch64": "arm64"}.get(platform.machine().lower())
+    return f"{system}_{arch}" if system and arch else ""
+
+
+def _provider_override(tf_dir) -> str | None:
+    """CLI config that points hashicorp/aws at the cached provider, so tf_dir gets no copy of it.
+
+    Only used when the cache already holds the version pinned in the lock file and aws is the only
+    provider; otherwise None and Terraform installs the provider normally (filling the cache).
+    shortcut: aws only, because every reference configuration uses it; add providers when one needs it.
+    """
+    if not tf_dir:
+        return None
+    try:
+        lock = (Path(tf_dir) / ".terraform.lock.hcl").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    names = re.findall(r'^provider "([^"]+)"', lock, re.M)
+    m = re.search(r'^provider "registry\.terraform\.io/hashicorp/aws" \{\s*version\s*=\s*"([0-9][^"/\\]*)"', lock, re.M)
+    plat = _platform_dir()
+    if names != ["registry.terraform.io/hashicorp/aws"] or not m or not plat:
+        return None
+    pdir = PLUGIN_CACHE / "registry.terraform.io" / "hashicorp" / "aws" / m.group(1) / plat
+    if not any(pdir.glob("terraform-provider-aws*")):
+        return None
+    text = f'provider_installation {{\n  dev_overrides {{\n    "hashicorp/aws" = "{pdir.as_posix()}"\n  }}\n  direct {{}}\n}}\n'
+    rc = Path.home() / ".scof" / f"override-aws-{m.group(1)}-{plat}.tfrc"
+    try:
+        rc.parent.mkdir(parents=True, exist_ok=True)
+        if not rc.is_file() or rc.read_text(encoding="utf-8") != text:
+            rc.write_text(text, encoding="utf-8")
+    except OSError:
+        return None
+    return str(rc)
+
+
+def _tf_env(tf_dir=None) -> dict:
     env = os.environ.copy()
     # Always mock: a developer's real AWS credentials must never reach a plan.
     env.update(AWS_ACCESS_KEY_ID="mock", AWS_SECRET_ACCESS_KEY="mock", AWS_EC2_METADATA_DISABLE="true")
     for name in ("AWS_SESSION_TOKEN", "AWS_PROFILE"):
         env.pop(name, None)
     env.setdefault("TF_IN_AUTOMATION", "1")
+    if PLUGIN_CACHE:
+        try:
+            PLUGIN_CACHE.mkdir(parents=True, exist_ok=True)  # the first run downloads into it, later runs reuse it
+        except OSError:
+            pass  # shortcut: no cache, Terraform then downloads per folder as before
     if PLUGIN_CACHE and PLUGIN_CACHE.is_dir():
         env.setdefault("TF_PLUGIN_CACHE_DIR", str(PLUGIN_CACHE))
         env.setdefault("TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE", "true")
+        if "TF_CLI_CONFIG_FILE" not in env:  # a developer's own CLI config always wins
+            override = _provider_override(tf_dir)
+            if override:
+                env["TF_CLI_CONFIG_FILE"] = override
     return env
 
 
@@ -203,11 +253,16 @@ def generate_plan(tf_dir, plan_json_path) -> dict:
     if not list(tf_dir.glob("*.tf")):
         raise ScofError(f"No .tf files in {tf_dir}")
     tf = find_binary("terraform")
-    env = _tf_env()
+    env = _tf_env(tf_dir)
     if not (tf_dir / ".terraform").is_dir():
         p, _ = _run([tf, f"-chdir={tf_dir}", "init", "-input=false", "-no-color"], env)
         if p.returncode != 0:
             raise ScofError("terraform init failed:\n" + _tail(p))
+        # That init filled the shared cache. From here on point at the cached provider and drop the
+        # per-folder copy init just made (only this run's own folder: .terraform did not exist before).
+        env = _tf_env(tf_dir)
+        if "TF_CLI_CONFIG_FILE" in env and "TF_CLI_CONFIG_FILE" not in os.environ:
+            shutil.rmtree(tf_dir / ".terraform", ignore_errors=True)
     with tempfile.TemporaryDirectory() as td:
         planfile = str(Path(td) / "tfplan")
         p, t_plan = _run([tf, f"-chdir={tf_dir}", "plan", "-input=false", "-no-color",
@@ -235,7 +290,7 @@ def context_file(context: str) -> Path:
 
 
 def evaluate_opa(plan_json, context):
-    return evaluate_opa_with_data(plan_json, [ALLOWLISTS, CONTROL_SETS, context_file(context)])
+    return evaluate_opa_with_data(plan_json, [ALLOWLISTS, KNOWN_CONTEXTS, CONTROL_SETS, context_file(context)])
 
 
 def evaluate_opa_with_data(plan_json, data_files):
@@ -261,7 +316,7 @@ def evaluate_opa_with_data(plan_json, data_files):
 def evaluate_conftest(plan_json, context):
     ctx = context_file(context)
     cmd = [find_binary("conftest"), "test", str(plan_json), "--policy", str(POLICY_DIR),
-           "--data", str(ALLOWLISTS), "--data", str(CONTROL_SETS), "--data", str(ctx), "--output", "json", "--no-color"]
+           "--data", str(ALLOWLISTS), "--data", str(KNOWN_CONTEXTS), "--data", str(CONTROL_SETS), "--data", str(ctx), "--output", "json", "--no-color"]
     p, secs = _run(cmd)
     if not (p.stdout or "").strip():
         raise ScofError("conftest produced no output:\n" + _tail(p))

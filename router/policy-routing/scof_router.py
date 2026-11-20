@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROUTER_DIR = Path(__file__).resolve().parent
 ROUTES_FILE = ROUTER_DIR / "routing.json"
-ALLOWLISTS_FILE = ROUTER_DIR / "region_allowlists.json"
+KNOWN_CONTEXTS_FILE = ROUTER_DIR / "known_contexts.json"
 CONTROL_SETS_FILE = ROUTER_DIR / "control_sets.json"
 CONTEXT_DIR = ROUTER_DIR / "contexts"
 
@@ -39,11 +39,11 @@ def _read_json(path):
         raise RouterError("cannot read " + Path(path).name + " (" + str(exc) + ")") from exc
 
 
-def known_contexts(allowlists_file=ALLOWLISTS_FILE):
-    data = _read_json(allowlists_file)
+def known_contexts(known_file=KNOWN_CONTEXTS_FILE):
+    data = _read_json(known_file)
     known = data.get("known_contexts") if isinstance(data, dict) else None
     if not known:
-        raise RouterError("region_allowlists.json has no known_contexts")
+        raise RouterError("known_contexts.json has no known_contexts")
     return sorted(known)
 
 
@@ -64,7 +64,7 @@ def load_routes(routes_file=ROUTES_FILE):
     return routes
 
 
-def resolve(jurisdiction, sector=None, routes_file=ROUTES_FILE, allowlists_file=ALLOWLISTS_FILE):
+def resolve(jurisdiction, sector=None, routes_file=ROUTES_FILE, known_file=KNOWN_CONTEXTS_FILE):
     """Return the context name for a deployment, or raise RouterError."""
     j, s = _norm(jurisdiction), _norm(sector)
     if not j:
@@ -76,7 +76,7 @@ def resolve(jurisdiction, sector=None, routes_file=ROUTES_FILE, allowlists_file=
     if len(matches) > 1:
         raise RouterError("ambiguous routes for " + label)
     context = matches[0]["context"]
-    if context not in known_contexts(allowlists_file):
+    if context not in known_contexts(known_file):
         raise RouterError("route for " + label + " points to unknown context '" + context + "'")
     return context
 
@@ -108,8 +108,8 @@ def context_json(context):
     return json.dumps({"context": context}, separators=(",", ":")) + "\n"
 
 
-def write_context_file(context, out_dir=CONTEXT_DIR, allowlists_file=ALLOWLISTS_FILE):
-    if context not in known_contexts(allowlists_file):
+def write_context_file(context, out_dir=CONTEXT_DIR, known_file=KNOWN_CONTEXTS_FILE):
+    if context not in known_contexts(known_file):
         raise RouterError("unknown context '" + str(context) + "'")
     path = Path(out_dir) / (context + ".json")
     path.parent.mkdir(parents=True, exist_ok=True)

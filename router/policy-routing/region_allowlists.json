@@ -1,5 +1,4 @@
 {
-  "known_contexts": ["india", "india-finance", "eu", "india-healthcare"],
   "region_allowlists": {
     "india-finance": ["ap-south-1", "ap-south-2"],
     "eu": ["eu-central-1", "eu-west-1", "eu-west-3", "eu-north-1", "eu-south-1", "eu-south-2"]
