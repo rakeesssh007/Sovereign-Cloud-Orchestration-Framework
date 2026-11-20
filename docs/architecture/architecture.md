@@ -20,7 +20,7 @@ The CI gate calls the same linter as the developer. `scof_core.py` is the only m
 | Shared consumer | `cli/compliance-linter/scof_core.py` | Generates plan JSON, runs OPA and Conftest and requires identical findings, parses results, maps violations to source lines |
 | CLI linter | `cli/compliance-linter/scof_lint.py` | Command line and `--watch` mode |
 | Router | `router/policy-routing/scof_router.py` | Maps jurisdiction and sector to a deployment context |
-| Routing data | `router/policy-routing/*.json` | `routing.json`, `region_allowlists.json`, `control_sets.json`, `targets.json`, `contexts/<context>.json` |
+| Routing data | `router/policy-routing/*.json` | `routing.json`, `known_contexts.json`, `region_allowlists.json`, `control_sets.json`, `targets.json`, `contexts/<context>.json` |
 | CI gate | `scripts/ci_gate.py`, `.github/workflows/compliance-gate.yml` | Evaluates deployable configurations on pull requests |
 | Catalogue check | `scripts/verify_control_catalogue_hash.py` | Checks the control catalogue and its copy of the matrix text |
 
@@ -34,7 +34,7 @@ The CI gate calls the same linter as the developer. `scof_core.py` is the only m
 ## Routing and control sets
 
 - `routing.json` maps a jurisdiction (and sector) to a context: `india` and `finance` give `india-finance`; `india` and `healthcare` give `india-healthcare`; `india` with no sector gives `india`; `eu` gives `eu`.
-- `region_allowlists.json` holds the allowed regions per context, and `control_sets.json` lists the controls enabled per context.
+- `known_contexts.json` lists the valid contexts, `region_allowlists.json` holds the allowed regions per context, and `control_sets.json` lists the controls enabled per context.
 - `contexts/<context>.json` holds `{"context": "<name>"}`, which is passed to the engines.
 - `targets.json` lists the deployable configurations the gate checks and the deployment each belongs to.
 

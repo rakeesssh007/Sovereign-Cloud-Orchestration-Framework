@@ -1,1 +1,10 @@
 * text=auto eol=lf
+
+# Left out of "Download ZIP" and git archive: tests and developer-only files.
+# A clone still has them, and CI on main still runs them.
+policies/*_test.rego export-ignore
+cli/compliance-linter/test_*.py export-ignore
+router/policy-routing/test_router.py export-ignore
+scripts/verify_control_catalogue_hash.py export-ignore
+vscode/lightweight-editor-integration export-ignore
+terraform export-ignore
