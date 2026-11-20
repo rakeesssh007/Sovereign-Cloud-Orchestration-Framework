@@ -52,20 +52,39 @@ Which controls run depends on the deployment context (`router/policy-routing/con
 
 Terraform, OPA, Conftest and Python 3 on your `PATH`. CI uses Terraform 1.16.4, OPA 1.21.1, Conftest 0.71.0 and Python 3.14.
 
+If OPA or Conftest is missing, install the pinned versions (Windows, PowerShell; then open a new terminal):
+
+```powershell
+$bin = "$env:USERPROFILE\.scof\bin"; New-Item -ItemType Directory -Force $bin | Out-Null
+Invoke-WebRequest https://github.com/open-policy-agent/opa/releases/download/v1.21.1/opa_windows_amd64.exe -OutFile "$bin\opa.exe"
+Invoke-WebRequest https://github.com/open-policy-agent/conftest/releases/download/v0.71.0/conftest_0.71.0_Windows_x86_64.zip -OutFile "$bin\conftest.zip"
+Expand-Archive "$bin\conftest.zip" -DestinationPath $bin -Force; Remove-Item "$bin\conftest.zip"
+[Environment]::SetEnvironmentVariable("Path", "$([Environment]::GetEnvironmentVariable('Path','User'));$bin", "User")
+```
+
+Linux (macOS Apple silicon: use `opa_darwin_arm64` and `conftest_0.71.0_Darwin_arm64.tar.gz`):
+
+```bash
+mkdir -p ~/.local/bin
+curl -sSfL -o ~/.local/bin/opa https://github.com/open-policy-agent/opa/releases/download/v1.21.1/opa_linux_amd64 && chmod +x ~/.local/bin/opa
+curl -sSfL https://github.com/open-policy-agent/conftest/releases/download/v0.71.0/conftest_0.71.0_Linux_x86_64.tar.gz | tar -xz -C ~/.local/bin conftest
+```
+
+Check with `opa version` and `conftest --version`. Each release page also publishes SHA-256 checksums (`<file>.sha256` for OPA, `checksums.txt` for Conftest) if you want to verify the downloads. As an alternative to changing `PATH`, point `SCOF_OPA` and `SCOF_CONFTEST` at the executables.
+
 No AWS account or credentials are needed. Plans always run with mock credentials and the provider's offline settings; any AWS credentials in your environment are ignored. Only downloading the AWS provider needs internet access. The provider version is pinned by the committed `.terraform.lock.hcl` files (hashicorp/aws 6.67.0, for `windows_amd64` and `linux_amd64`).
 
-Optional: set `SCOF_TF_PLUGIN_CACHE` to a directory to use it as a Terraform plugin cache, which makes `terraform init` faster.
+SCOF uses a shared Terraform plugin cache so the AWS provider (about 800 MB) is downloaded once. By default the cache is created at `~/.scof/tf-plugin-cache` on the first run; set `SCOF_TF_PLUGIN_CACHE` to use another directory. Once the cache holds the provider version pinned in a folder's `.terraform.lock.hcl`, SCOF points Terraform at that single copy (a Terraform `dev_overrides` setting, applied only to SCOF's own Terraform calls), so checked folders do not get their own copy. The first run in an empty cache installs the provider normally.
 
 ## Usage
 
 ### Lint a Terraform directory
 
 ```powershell
-python cli/compliance-linter/scof_lint.py --dir terraform/rds --context india-finance
-python cli/compliance-linter/scof_lint.py --dir terraform/rds --context eu
+python cli/compliance-linter/scof_lint.py --dir <path-to-your-terraform-directory> --context <context>
 ```
 
-The first command passes. The second reports a `REGION-RESTRICTION` violation, because the configuration uses an India region and the `eu` context allows only EU regions.
+`--dir` is the folder that holds your `.tf` files (run `terraform init` there once). `--context` is one of `india-finance`, `eu`, `india-healthcare` or `india`; it selects the controls and the region allow-list (see Controls). For example, a configuration that uses an India region reports a `REGION-RESTRICTION` violation under `eu`, which allows only EU regions.
 
 Violations print as `file:line:column: error: [CONTROL] message`, followed by a summary line with stage timings. Exit code: 0 passed, 1 policy violations, 2 tooling error.
 
@@ -115,7 +134,7 @@ With branch protection requiring these checks, a change that violates a control 
 | Path | Purpose |
 |---|---|
 | `policies/` | Shared Rego library with unit tests |
-| `router/policy-routing/` | Routing, region allow-lists, control sets, deployable targets, context files |
+| `router/policy-routing/` | Routing, known contexts, region allow-lists, control sets, deployable targets, context files |
 | `cli/compliance-linter/` | Linter and the shared result consumer `scof_core.py`, with tests |
 | `.vscode/`, `vscode/` | VS Code tasks and problem matcher |
 | `terraform/` | Deployable reference configurations checked by the gate |

@@ -15,9 +15,8 @@ def _load(name):
 class ControlSetConsistency(unittest.TestCase):
     def setUp(self):
         self.sets = _load("control_sets.json")["control_sets"]
-        allow = _load("region_allowlists.json")
-        self.known = set(allow["known_contexts"])
-        self.lists = allow["region_allowlists"]
+        self.known = set(_load("known_contexts.json")["known_contexts"])
+        self.lists = _load("region_allowlists.json")["region_allowlists"]
 
     def test_sets_cover_exactly_the_known_contexts(self):
         self.assertEqual(set(self.sets), self.known)

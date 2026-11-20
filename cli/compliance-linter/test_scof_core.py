@@ -189,16 +189,16 @@ class PluginCacheOverrideTests(unittest.TestCase):
                 # leak state into later tests.
                 importlib.reload(core)
 
-    def test_missing_plugin_cache_is_not_passed_to_terraform(self):
+    def test_missing_plugin_cache_is_created_and_passed_to_terraform(self):
         with tempfile.TemporaryDirectory() as td:
-            missing_cache = Path(td) / "missing-cache"
+            missing_cache = Path(td) / "a" / "missing-cache"
             with (
                 patch.object(core, "PLUGIN_CACHE", missing_cache),
                 patch.dict(os.environ, {}, clear=True),
             ):
                 env = core._tf_env()
-            self.assertNotIn("TF_PLUGIN_CACHE_DIR", env)
-            self.assertNotIn("TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE", env)
+            self.assertTrue(missing_cache.is_dir())
+            self.assertEqual(env["TF_PLUGIN_CACHE_DIR"], str(missing_cache))
 
     def test_existing_plugin_cache_directory_is_passed_to_terraform(self):
         with tempfile.TemporaryDirectory() as td:
