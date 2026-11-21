@@ -150,6 +150,12 @@ This is the layout of the full repository. The release zip omits the test files,
 | `docs/` | Architecture and the regulation-to-control matrix |
 | `.github/workflows/` | CI compliance gate |
 
+## Trust model
+
+SCOF is a tool you run on your own machine and in your own pipeline. Anyone who can edit the policies, the router data or the code can change what it reports, and a local tool cannot prevent that. The command line and editor checks are therefore advisory feedback for developers, not tamper-proof evidence. SCOF does not defend against a user who deliberately weakens a control or skips the check; that is misuse of the tool, not something it can lock down.
+
+In the pull-request gate the protection comes from your repository settings, not from SCOF. A pull request that edits `policies/`, `router/`, `cli/` or the workflow is judged by its own edited files, so require review for changes to those paths (for example with branch protection and a `CODEOWNERS` file). Verifying the policy files against a recorded hash list, or running the gate from a separate trusted repository, would harden this further and is not implemented.
+
 ## Limitations
 
 - AWS only, eight controls over a small set of resource types: S3, RDS, EC2, KMS, IAM and CloudWatch log groups. This is a focused prototype and does not claim complete regulatory coverage.
