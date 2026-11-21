@@ -48,6 +48,10 @@ Which controls run depends on the deployment context (`router/policy-routing/con
 
 `india` is the sector-neutral India context, as `eu` is for the EU: a deployment in India without a sector gets the base controls and `LOG-RETENTION`, with no region allow-list. A sector is optional for India and EU; an unsupported sector is an error, not a silent fallback. No healthcare-specific control exists: `india-healthcare` applies the same controls as `india`.
 
+## Download
+
+To use SCOF, take `SCOF.zip` from the repository's [**Releases** page](https://github.com/rakeesssh007/Sovereign-Cloud-Orchestration-Framework/releases) and extract it into a new, empty folder. The files sit directly at the top level of the zip. The release zip contains the product only: the policies, router data, command line tool, VS Code tasks, the architecture notes and the regulation matrix. It leaves out the unit tests, the sample `terraform/` configurations and developer-only scripts. To get those, clone the repository; the instructions under Tests, Continuous integration and Repository layout below apply to the full repository.
+
 ## Requirements
 
 Terraform, OPA, Conftest and Python 3 on your `PATH`. CI uses Terraform 1.16.4, OPA 1.21.1, Conftest 0.71.0 and Python 3.14.
@@ -84,7 +88,7 @@ SCOF uses a shared Terraform plugin cache so the AWS provider (about 800 MB) is 
 python cli/compliance-linter/scof_lint.py --dir <path-to-your-terraform-directory> --context <context>
 ```
 
-`--dir` is the folder that holds your `.tf` files (run `terraform init` there once). `--context` is one of `india-finance`, `eu`, `india-healthcare` or `india`; it selects the controls and the region allow-list (see Controls). For example, a configuration that uses an India region reports a `REGION-RESTRICTION` violation under `eu`, which allows only EU regions.
+`--dir` is the folder that holds your `.tf` files. SCOF runs `terraform init`, `plan` and `show` itself, and the AWS provider block needs the offline settings `skip_credentials_validation`, `skip_requesting_account_id` and `skip_metadata_api_check` set to `true` so that no AWS account is needed. `--context` is one of `india-finance`, `eu`, `india-healthcare` or `india`; it selects the controls and the region allow-list (see Controls). For example, a configuration that uses an India region reports a `REGION-RESTRICTION` violation under `eu`, which allows only EU regions.
 
 Violations print as `file:line:column: error: [CONTROL] message`, followed by a summary line with stage timings. Exit code: 0 passed, 1 policy violations, 2 tooling error.
 
@@ -103,9 +107,11 @@ The router fails closed: an unknown, missing or ambiguous deployment is an error
 
 ### VS Code
 
-Open the repository root in VS Code, open a `.tf` file, then run **Terminal > Run Task > SCOF: watch this folder (save-time)** and choose a context. Violations appear in the editor and the Problems panel after each save. The tasks live in `.vscode/tasks.json`; the same file is kept in `vscode/lightweight-editor-integration/` for reuse in other repositories. Feedback is save-time, not as-you-type, because each run executes `terraform plan` and `terraform show`.
+Open the SCOF folder itself in VS Code (File > Open Folder), open a `.tf` file and click inside it so it is the active editor (the tasks check the folder of the active file), then run **Terminal > Run Task > SCOF: watch this folder (save-time)** and choose a context. Violations appear in the editor and the Problems panel after each save. The tasks live in `.vscode/tasks.json`; the same file is kept in `vscode/lightweight-editor-integration/` in the full repository for reuse in other repositories. Feedback is save-time, not as-you-type, because each run executes `terraform plan` and `terraform show`.
 
 ### Tests
+
+These need the full repository (clone it); the release zip does not include the test files or the `terraform/` configurations.
 
 ```powershell
 opa fmt --list policies
@@ -131,6 +137,8 @@ With branch protection requiring these checks, a change that violates a control 
 
 ## Repository layout
 
+This is the layout of the full repository. The release zip omits the test files, `terraform/` and `vscode/`.
+
 | Path | Purpose |
 |---|---|
 | `policies/` | Shared Rego library with unit tests |
@@ -141,6 +149,12 @@ With branch protection requiring these checks, a change that violates a control 
 | `scripts/` | CI gate and control catalogue check |
 | `docs/` | Architecture and the regulation-to-control matrix |
 | `.github/workflows/` | CI compliance gate |
+
+## Trust model
+
+SCOF is a tool you run on your own machine and in your own pipeline. Anyone who can edit the policies, the router data or the code can change what it reports, and a local tool cannot prevent that. The command line and editor checks are therefore advisory feedback for developers, not tamper-proof evidence. SCOF does not defend against a user who deliberately weakens a control or skips the check; that is misuse of the tool, not something it can lock down.
+
+In the pull-request gate the protection comes from your repository settings, not from SCOF. A pull request that edits `policies/`, `router/`, `cli/` or the workflow is judged by its own edited files, so require review for changes to those paths (for example with branch protection and a `CODEOWNERS` file). Verifying the policy files against a recorded hash list, or running the gate from a separate trusted repository, would harden this further and is not implemented.
 
 ## Limitations
 
